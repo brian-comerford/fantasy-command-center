@@ -52,23 +52,13 @@ button, input, select {
 
 .brand {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
 }
 
-.brand-mark {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 22px;
-  color: var(--gold);
-  letter-spacing: 1px;
-}
-
-.brand-name {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 17px;
-  color: var(--chalk);
+.brand-logo {
+  height: 52px;
+  width: auto;
+  display: block;
 }
 
 .league-tabs {
