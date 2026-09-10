@@ -29,7 +29,7 @@ const EspnAPI = (() => {
   // for QB/RB/WR/TE only, or null if the proxy isn't configured/reachable.
   async function getWeeklyProjections(proxyBaseUrl, season, week) {
     if (!proxyBaseUrl) return null;
-    const url = `${proxyBaseUrl.replace(/\/$/, '')}/?season=${season}&week=${week}`;
+    const url = `${proxyBaseUrl.replace(/\/$/, '')}/espn-proxy?season=${season}&week=${week}`;
     const [espnPlayers, crosswalk] = await Promise.all([
       fetch(url).then(r => { if (!r.ok) throw new Error(`ESPN proxy -> HTTP ${r.status}`); return r.json(); }),
       PlayerIdCrosswalk.getMap(),

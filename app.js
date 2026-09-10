@@ -576,7 +576,10 @@ function renderTradeResult() {
     state.username = saved.username;
     state.userId = saved.userId;
     state.leagues = saved.leagues;
-    state.workerProxyUrl = saved.workerProxyUrl || null;
+    // Falls back to the old field name (pre-rename) so anyone who'd already
+    // configured this doesn't silently lose it -- gets saved under the new
+    // name next time they hit Save.
+    state.workerProxyUrl = saved.workerProxyUrl || saved.espnProxyUrl || null;
     el('setupPanel').classList.add('hidden');
     el('dashboard').classList.remove('hidden');
     bootDashboard();
