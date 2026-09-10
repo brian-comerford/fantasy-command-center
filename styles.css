@@ -428,6 +428,9 @@ button, input, select {
   color: var(--chalk);
 }
 
+.lineup-row .pts.pts-over { color: var(--turf-bright); }
+.lineup-row .pts.pts-under { color: var(--rust-bright); }
+
 .bench-heading { color: var(--chalk-dim); font-size: 13px; margin: 18px 0 8px; }
 
 .waiver-list { display: flex; flex-direction: column; gap: 8px; }

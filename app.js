@@ -253,12 +253,20 @@ async function loadLeagueData(leagueId) {
   let lastWeekPoints = {};
   let seasonAvgPoints = {};
   let seasonGamesPlayed = {};
+  // This week's actual points specifically, keyed by player -- distinct
+  // from lastWeekPoints above, which can reach back to an earlier week for
+  // a player who hasn't played yet this week. Used to swap a starter's
+  // projection for their real score, live, as soon as their game ends.
+  let currentWeekActualPoints = {};
   const CURRENT_WEEK_TTL_MS = 15 * 60 * 1000;
   try {
     const weekNumbers = Array.from({ length: week }, (_, i) => i + 1);
     const weekStatsList = await Promise.all(
       weekNumbers.map(w => SleeperAPI.getActualWeeklyStats(season, w, w === week ? CURRENT_WEEK_TTL_MS : undefined))
     );
+
+    const currentWeekStats = weekStatsList[weekStatsList.length - 1];
+    currentWeekActualPoints = Scoring.projectedPointsForLeague(currentWeekStats, league.scoring_settings || {});
 
     const sums = {};
     for (let i = weekStatsList.length - 1; i >= 0; i--) {
@@ -319,7 +327,7 @@ async function loadLeagueData(leagueId) {
 
   state.leagueData[leagueId] = {
     league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
-    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed,
+    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds,
   };
@@ -343,6 +351,18 @@ async function loadLeagueData(leagueId) {
 // didn't play), to compare against the projection shown alongside it.
 // Returns '' before any week has been completed, or for a player with no
 // actual-scoring history yet (e.g. just added from waivers).
+// A player's live point value for the lineup grid: their actual score once
+// their game for the current week has been played, falling back to the
+// projection otherwise. Distinct from recentFormLine's "last week" number,
+// which is about performance history, not swapping in the number shown
+// next to this week's own projection.
+function livePlayerPoints(playerId, projectedPts, data) {
+  const actual = data.currentWeekActualPoints ? data.currentWeekActualPoints[playerId] : undefined;
+  if (typeof actual !== 'number') return { pts: projectedPts, isActual: false, colorClass: '' };
+  const colorClass = actual > projectedPts + 0.01 ? 'pts-over' : actual < projectedPts - 0.01 ? 'pts-under' : '';
+  return { pts: actual, isActual: true, colorClass };
+}
+
 function recentFormLine(playerId, data) {
   // Current-season data takes priority whenever it exists for this player
   // at all -- even just one game so far -- since it's updated per-player
@@ -572,7 +592,16 @@ function renderLineupTab(data) {
     valuation
   );
 
-  el('heroTotal').textContent = optimal.totalPts.toFixed(1);
+  let liveTotal = 0;
+  let anyActual = false;
+  optimal.assignments.forEach(a => {
+    if (!a.id) return;
+    const live = livePlayerPoints(a.id, a.pts, data);
+    liveTotal += live.pts;
+    if (live.isActual) anyActual = true;
+  });
+  el('heroTotal').textContent = liveTotal.toFixed(1);
+  el('heroLabel').textContent = anyActual ? 'Live starting total' : 'Projected starting total';
 
   renderInjuryWatch(data);
 
@@ -615,6 +644,7 @@ function renderLineupTab(data) {
   grid.innerHTML = '';
   optimal.assignments.forEach(a => {
     const meta = a.id ? playerMeta[a.id] : null;
+    const live = a.id ? livePlayerPoints(a.id, a.pts, data) : null;
     const row = document.createElement('div');
     row.className = 'lineup-row' + (!a.id ? ' empty-slot' : '');
     row.innerHTML = `
@@ -623,7 +653,7 @@ function renderLineupTab(data) {
         <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'}</span>
         ${meta ? recentFormLine(a.id, data) : ''}
       </div>
-      <span class="pts">${a.id ? a.pts.toFixed(1) : '--'}</span>
+      <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}">${live ? live.pts.toFixed(1) : '--'}</span>
     `;
     grid.appendChild(row);
   });
@@ -635,6 +665,7 @@ function renderLineupTab(data) {
     grid.appendChild(heading);
     optimal.bench.forEach(p => {
       const meta = playerMeta[p.id];
+      const live = livePlayerPoints(p.id, p.pts, data);
       const row = document.createElement('div');
       row.className = 'lineup-row';
       row.innerHTML = `
@@ -643,7 +674,7 @@ function renderLineupTab(data) {
           <span>${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}</span>
           ${recentFormLine(p.id, data)}
         </div>
-        <span class="pts">${p.pts.toFixed(1)}</span>
+        <span class="pts${live.colorClass ? ` ${live.colorClass}` : ''}">${live.pts.toFixed(1)}</span>
       `;
       grid.appendChild(row);
     });

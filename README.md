@@ -7,7 +7,9 @@ data from Sleeper's public API for all three of your leagues and helps you:
   current week, the specific bench-for-starter swaps worth making, and an
   **Injury watch** panel flagging any rostered player carrying a Sleeper
   injury tag, each with the best replacement available from your bench and
-  the waiver wire.
+  the waiver wire. Once a player's game for the week is over, their
+  projection on this tab flips to their real score — green if they beat
+  it, red if they fell short — and the total at the top updates to match.
 - **Waivers** — free agents who project higher than your weakest player
   at the same position, with "trending add" flags.
 - **Trade** — pick players from your roster and an opponent's, and see the
@@ -100,6 +102,20 @@ number changes the URL, which forces a fresh fetch.
   tab becoming visible again or being restored from the browser's
   back-forward cache, and refetches if it's been at least a minute since
   the last load, so it doesn't refetch on every brief glance.
+
+## Live scoring on the lineup tab
+
+The **Full lineup breakdown** shows each starter's projection right up
+until their own game for the week ends -- at that point the number swaps
+to their real score instead, colored green if it beat the projection or
+red if it fell short (a game still in progress, or not yet started, keeps
+showing the plain projection with no color). This is per-player, the same
+way the recent-form line above is: a Thursday-night starter shows their
+real score by Friday morning without waiting on the rest of the week's
+games to finish. The **Projected starting total** at the top of the tab
+follows suit, summing real scores in for whichever starters have already
+played and projections for the rest -- and relabels itself **Live starting
+total** the moment at least one starter's real score is factored in.
 
 ## Injury watch
 
