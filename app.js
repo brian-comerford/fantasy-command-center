@@ -516,9 +516,8 @@ function renderLineupTab(data) {
 
   const swapsList = el('swapsList');
   swapsList.innerHTML = '';
-  if (!swaps.length) {
-    swapsList.innerHTML = '<div class="no-swaps">Your current starters already match the optimal lineup. No changes suggested.</div>';
-  } else {
+  el('swapsHeading').classList.toggle('hidden', !swaps.length);
+  if (swaps.length) {
     swaps.forEach(s => {
       const card = document.createElement('div');
       card.className = 'swap-card';
@@ -610,18 +609,12 @@ function renderInjuryWatch(data) {
     .map(id => ({ id, ...playerMeta[id], pts: valuation[id] ?? 0, isStarter: starters.has(id) }))
     .sort((a, b) => Number(b.isStarter) - Number(a.isStarter) || b.pts - a.pts);
 
+  if (!flagged.length) return;
+
   const heading = document.createElement('h2');
   heading.className = 'section-heading';
   heading.textContent = 'Injury watch';
   container.appendChild(heading);
-
-  if (!flagged.length) {
-    const empty = document.createElement('div');
-    empty.className = 'no-swaps';
-    empty.textContent = 'No injury concerns flagged on your roster this week.';
-    container.appendChild(empty);
-    return;
-  }
 
   const list = document.createElement('div');
   list.className = 'injury-watch-list';
