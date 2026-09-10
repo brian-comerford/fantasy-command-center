@@ -489,6 +489,59 @@ function initTabs() {
   el('brandHome').addEventListener('click', () => switchToTab('lineup'));
 }
 
+// The agreement-badge (Strong/Mixed/Split) and cbs-tag (CBS agrees/
+// disagrees) badges carry their detail numbers in a `title` attribute,
+// which only ever shows on hover -- nothing on a touch screen. Tapping one
+// now shows the same text in a small popover instead, which works
+// identically on mobile and desktop (a click does the same thing there,
+// alongside the hover that still works too). One shared popover element
+// repositioned per tap, rather than inserting new elements next to each
+// badge, since these badges sit inline inside player-name text where a
+// dropped-in block element would break the line layout.
+function initBadgeTapTooltips() {
+  const tooltip = document.createElement('div');
+  tooltip.className = 'badge-tooltip hidden';
+  document.body.appendChild(tooltip);
+  let openBadge = null;
+
+  function hideTooltip() {
+    tooltip.classList.add('hidden');
+    openBadge = null;
+  }
+
+  document.addEventListener('click', (e) => {
+    const badge = e.target.closest('.agreement-badge, .cbs-tag');
+    if (!badge) {
+      hideTooltip();
+      return;
+    }
+    e.stopPropagation();
+    if (openBadge === badge) {
+      hideTooltip();
+      return;
+    }
+    const text = badge.getAttribute('title');
+    if (!text) return;
+
+    openBadge = badge;
+    tooltip.textContent = text;
+    tooltip.classList.remove('hidden');
+    const rect = badge.getBoundingClientRect();
+    tooltip.style.top = `${rect.bottom + 6}px`;
+    tooltip.style.left = `${rect.left}px`;
+    // Clamp after render so we know the tooltip's actual width.
+    requestAnimationFrame(() => {
+      const maxLeft = window.innerWidth - tooltip.offsetWidth - 8;
+      if (rect.left > maxLeft) tooltip.style.left = `${Math.max(8, maxLeft)}px`;
+    });
+  });
+
+  // A stale position (badge moved out from under a position:fixed
+  // tooltip) is worse than just closing it.
+  window.addEventListener('scroll', hideTooltip, true);
+  window.addEventListener('resize', hideTooltip);
+}
+
 function renderActiveTabContent() {
   const data = state.leagueData[state.activeLeagueId];
   if (!data) return;
@@ -841,6 +894,7 @@ window.addEventListener('pageshow', (event) => {
 (function init() {
   initSetup();
   initTabs();
+  initBadgeTapTooltips();
   const saved = loadSavedSetup();
   if (saved && saved.leagues && saved.leagues.length) {
     state.username = saved.username;

@@ -474,6 +474,24 @@ button, input, select {
 .cbs-tag.agree { color: var(--turf-bright); }
 .cbs-tag.disagree { color: var(--chalk-dim); }
 
+/* Tap/click popover for badges whose detail otherwise only shows on
+   hover (title attribute) -- see initBadgeTapTooltips in app.js. Fixed
+   positioning + JS-computed top/left, so no layout styling here beyond
+   appearance. */
+.badge-tooltip {
+  position: fixed;
+  z-index: 200;
+  max-width: 240px;
+  background: var(--panel-raised);
+  border: 1px solid var(--gold-dim);
+  color: var(--chalk);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
 .ask-claude-wrap {
   flex-basis: 100%;
   display: flex;

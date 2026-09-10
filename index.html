@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=5" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=6" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -127,7 +127,7 @@
           <li><strong>Mixed</strong> -- 15-35% apart. Real disagreement between the sources -- worth a second look before trusting the average blindly.</li>
           <li><strong>Split</strong> -- more than 35% apart. The two sources see this player very differently. The blended number is still the best single estimate available, but it's papering over a real disagreement.</li>
         </ul>
-        <p class="muted small">Hover the badge to see each source's exact number.</p>
+        <p class="muted small">Hover (or tap, on mobile) the badge to see each source's exact number.</p>
       </div>
 
       <div class="info-section">
@@ -137,6 +137,7 @@
           <span class="cbs-tag disagree">CBS disagrees</span>
         </p>
         <p>CBS Sports publishes its own consensus rank per position -- always on, no setup needed. It's a rank (e.g. "WR #14"), not a point value, so it's never blended into the projection itself -- it's a separate, third-opinion check. This tag compares CBS's rank for the two players in a suggested swap or waiver pickup, only when CBS has ranked both at the same position: <strong>agrees</strong> means CBS's board also favors the suggested player; <strong>disagrees</strong> means CBS would actually keep the other one.</p>
+        <p class="muted small">Hover (or tap, on mobile) the tag to see both players' exact CBS rank.</p>
       </div>
 
       <div class="info-section">
@@ -175,13 +176,13 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=5"></script>
-<script src="player-id-crosswalk.js?v=5"></script>
-<script src="espn-api.js?v=5"></script>
-<script src="cbs-api.js?v=5"></script>
-<script src="claude-assist.js?v=5"></script>
-<script src="scoring.js?v=5"></script>
-<script src="optimizer.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="sleeper-api.js?v=6"></script>
+<script src="player-id-crosswalk.js?v=6"></script>
+<script src="espn-api.js?v=6"></script>
+<script src="cbs-api.js?v=6"></script>
+<script src="claude-assist.js?v=6"></script>
+<script src="scoring.js?v=6"></script>
+<script src="optimizer.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
