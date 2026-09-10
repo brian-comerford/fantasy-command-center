@@ -307,6 +307,56 @@ async function loadLeagueData(leagueId) {
     console.warn('Could not compute actual-performance history, continuing without it.', e);
   }
 
+  // DVP (defense vs. position) and per-player usage-trend tracking -- see
+  // trends.js. Both need at least one fully-completed week of stats
+  // league-wide, so only weeks 1..week-1 (never the current, possibly
+  // still-in-progress week -- same reasoning the Stats tab's season
+  // summary uses). getActualWeeklyStatsRaw is a cache hit here for any
+  // week the actual-performance-history block above already fetched --
+  // same cache key, just keeping the opponent/team fields that reduction
+  // discards.
+  let dvp = {};
+  let usageTrends = {};
+  let teamOpponentThisWeek = {};
+  try {
+    const completedWeekNumbers = Array.from({ length: week - 1 }, (_, i) => i + 1);
+    const completedWeekEntries = await Promise.all(
+      completedWeekNumbers.map(w => SleeperAPI.getActualWeeklyStatsRaw(season, w))
+    );
+    dvp = Trends.computeDvp(completedWeekEntries, playerMeta, league.scoring_settings || {});
+
+    const gamesByPlayer = {};
+    completedWeekEntries.forEach((entries, i) => {
+      entries.forEach(entry => {
+        if (!entry.stats.off_snp) return; // only games they actually took an offensive snap in
+        if (!gamesByPlayer[entry.player_id]) gamesByPlayer[entry.player_id] = [];
+        gamesByPlayer[entry.player_id].push({ week: completedWeekNumbers[i], stats: entry.stats });
+      });
+    });
+    for (const [pid, games] of Object.entries(gamesByPlayer)) {
+      const trend = Trends.computeUsageTrend(games);
+      if (trend && trend.direction !== 'steady') usageTrends[pid] = trend;
+    }
+  } catch (e) {
+    console.warn('Could not compute DVP/usage trends, continuing without them.', e);
+  }
+
+  // This week's opponent per NFL team, for matching a player up against
+  // their DVP row above. Read off the current week's projections (already
+  // fetched above) since every entry there carries team/opponent; if that
+  // endpoint's down this week, fall back to whatever's in actual stats for
+  // players who've already played -- same team, same opponent all week.
+  try {
+    const projRaw = await SleeperAPI.getWeeklyProjectionsRaw(season, week);
+    teamOpponentThisWeek = Trends.buildTeamOpponentMap(projRaw, playerMeta);
+    if (!Object.keys(teamOpponentThisWeek).length) {
+      const actualRaw = await SleeperAPI.getActualWeeklyStatsRaw(season, week, CURRENT_WEEK_TTL_MS);
+      teamOpponentThisWeek = Trends.buildTeamOpponentMap(actualRaw, playerMeta);
+    }
+  } catch (e) {
+    console.warn("Could not determine this week's matchups for DVP badges, continuing without them.", e);
+  }
+
   // Fallback to last season's actuals, but only for players this season's
   // data above didn't cover at all yet -- almost always just "hasn't
   // played their Week 1 game yet". Only worth fetching early in the
@@ -353,6 +403,7 @@ async function loadLeagueData(leagueId) {
     lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds, opponent,
+    dvp, usageTrends, teamOpponentThisWeek,
   };
 
   const cbsNote = usedCbs ? ', with CBS\'s consensus rank as a tiebreaker' : '';
@@ -429,6 +480,47 @@ function confidenceBadges(incomingId, outgoingId, data) {
   }
 
   return html;
+}
+
+// "Good matchup" / "Tough matchup" against this player's actual NFL
+// opponent this week, based on how many fantasy points that defense has
+// allowed to this position all season (see Trends.computeDvp). Only shows
+// up for the top/bottom third of the 32 teams at that position -- an
+// unremarkable middle-of-the-pack matchup isn't worth a badge, same
+// judgment call as the CBS agree/disagree tag above. '' if there's no DVP
+// data yet (early season), no scheduled opponent, or this player's
+// position isn't tracked (K/DEF).
+function matchupBadge(playerId, data) {
+  const meta = data.playerMeta[playerId];
+  if (!meta) return '';
+  const opponent = (data.teamOpponentThisWeek || {})[meta.team];
+  const row = opponent && data.dvp && data.dvp[opponent] && data.dvp[opponent][meta.pos];
+  if (!row || !row.tier) return '';
+  const label = row.tier === 'good' ? 'Good matchup' : 'Tough matchup';
+  const tooltip = `${opponent} allow the ${Trends.ordinal(row.rank)}-most points to ${meta.pos}s this season ` +
+    `(${row.avgPts.toFixed(1)}/gm over ${row.games} gm${row.games === 1 ? '' : 's'}), out of ${row.outOf} teams.`;
+  return `<span class="matchup-badge ${row.tier}" title="${tooltip}">${label}</span>`;
+}
+
+// "Usage ↑" / "Usage ↓" when this player's touches (targets + rush
+// attempts) in their most recent game are meaningfully above or below
+// their average over the games before that (see Trends.computeUsageTrend)
+// -- a leading indicator a box score alone won't show. '' for a steady
+// role, or a player without at least two played games yet this season.
+function usageTrendBadge(playerId, data) {
+  const trend = (data.usageTrends || {})[playerId];
+  if (!trend) return '';
+  const arrow = trend.direction === 'up' ? '↑' : '↓';
+  const cls = trend.direction === 'up' ? 'up' : 'down';
+  const snapPart = trend.lastSnapShare != null
+    ? `, ${Math.round(trend.lastSnapShare * 100)}% snaps`
+    : '';
+  const priorSnapPart = trend.priorAvgSnapShare != null
+    ? ` (${Math.round(trend.priorAvgSnapShare * 100)}% snaps avg before that)`
+    : '';
+  const tooltip = `Week ${trend.lastWeek}: ${trend.lastTouches} touches${snapPart}, vs ${trend.priorAvgTouches}/gm ` +
+    `average over the ${trend.gamesConsidered - 1} game${trend.gamesConsidered - 1 === 1 ? '' : 's'} before that${priorSnapPart}.`;
+  return `<span class="usage-badge ${cls}" title="${tooltip}">Usage ${arrow}</span>`;
 }
 
 /* ---------------- Ask Claude ---------------- */
@@ -556,8 +648,9 @@ function initTabs() {
   el('brandHome').addEventListener('click', () => switchToTab('lineup'));
 }
 
-// The agreement-badge (Strong/Mixed/Split) and cbs-tag (CBS agrees/
-// disagrees) badges carry their detail numbers in a `title` attribute,
+// The agreement-badge (Strong/Mixed/Split), cbs-tag (CBS agrees/
+// disagrees), matchup-badge (Good/Tough matchup), and usage-badge (Usage
+// up/down) badges all carry their detail numbers in a `title` attribute,
 // which only ever shows on hover -- nothing on a touch screen. Tapping one
 // now shows the same text in a small popover instead, which works
 // identically on mobile and desktop (a click does the same thing there,
@@ -577,7 +670,7 @@ function initBadgeTapTooltips() {
   }
 
   document.addEventListener('click', (e) => {
-    const badge = e.target.closest('.agreement-badge, .cbs-tag');
+    const badge = e.target.closest('.agreement-badge, .cbs-tag, .matchup-badge, .usage-badge');
     if (!badge) {
       hideTooltip();
       return;
@@ -674,13 +767,13 @@ function renderLineupTab(data) {
       card.innerHTML = `
         <span class="swap-slot">${s.slot}</span>
         <div class="player-chip">
-          <span class="name">${s.starterPlayer ? s.starterPlayer.name : 'Empty slot'}</span>
+          <span class="name">${s.starterPlayer ? s.starterPlayer.name : 'Empty slot'} ${s.starterPlayer ? `${matchupBadge(s.starterPlayer.id, data)} ${usageTrendBadge(s.starterPlayer.id, data)}` : ''}</span>
           <span class="meta">${s.starterPlayer ? `${s.starterPlayer.pos} ${s.starterPlayer.team} · ${s.starterPlayer.pts.toFixed(1)} pts` : ''}</span>
           ${s.starterPlayer ? recentFormLine(s.starterPlayer.id, data) : ''}
         </div>
         <span class="swap-arrow">→</span>
         <div class="player-chip">
-          <span class="name">${s.benchPlayer.name} ${confidenceBadges(s.benchPlayer.id, s.starterPlayer ? s.starterPlayer.id : null, data)}</span>
+          <span class="name">${s.benchPlayer.name} ${confidenceBadges(s.benchPlayer.id, s.starterPlayer ? s.starterPlayer.id : null, data)} ${matchupBadge(s.benchPlayer.id, data)} ${usageTrendBadge(s.benchPlayer.id, data)}</span>
           <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts</span>
           ${recentFormLine(s.benchPlayer.id, data)}
         </div>
@@ -709,7 +802,7 @@ function renderLineupTab(data) {
     row.innerHTML = `
       <span class="slot-tag">${a.slot}</span>
       <div class="lineup-player-cell">
-        <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'}</span>
+        <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'} ${meta ? `${matchupBadge(a.id, data)} ${usageTrendBadge(a.id, data)}` : ''}</span>
         ${meta ? recentFormLine(a.id, data) : ''}
       </div>
       <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}">${live ? live.pts.toFixed(1) : '--'}</span>
@@ -730,7 +823,7 @@ function renderLineupTab(data) {
       row.innerHTML = `
         <span class="slot-tag">BN</span>
         <div class="lineup-player-cell">
-          <span>${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}</span>
+          <span>${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''} ${matchupBadge(p.id, data)} ${usageTrendBadge(p.id, data)}</span>
           ${recentFormLine(p.id, data)}
         </div>
         <span class="pts${live.colorClass ? ` ${live.colorClass}` : ''}">${live.pts.toFixed(1)}</span>
@@ -795,7 +888,7 @@ function renderOpponentLineup(data) {
     row.innerHTML = `
       <span class="slot-tag">${a.slot}</span>
       <div class="lineup-player-cell">
-        <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'}</span>
+        <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'} ${meta ? `${matchupBadge(a.id, data)} ${usageTrendBadge(a.id, data)}` : ''}</span>
       </div>
       <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}">${live ? live.pts.toFixed(1) : '--'}</span>
     `;
@@ -901,13 +994,13 @@ function renderWaiversTab(data) {
     card.className = 'waiver-card';
     card.innerHTML = `
       <div class="player-chip">
-        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${confidenceBadges(s.add.id, s.considerDropping.id, data)}</span>
+        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${confidenceBadges(s.add.id, s.considerDropping.id, data)} ${matchupBadge(s.add.id, data)} ${usageTrendBadge(s.add.id, data)}</span>
         <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts</span>
         ${recentFormLine(s.add.id, data)}
       </div>
       <span class="swap-arrow">could replace</span>
       <div class="player-chip">
-        <span class="name">${s.considerDropping.name}</span>
+        <span class="name">${s.considerDropping.name} ${matchupBadge(s.considerDropping.id, data)} ${usageTrendBadge(s.considerDropping.id, data)}</span>
         <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts</span>
         ${recentFormLine(s.considerDropping.id, data)}
       </div>

@@ -93,28 +93,65 @@ const SleeperAPI = (() => {
     return trimmed;
   }
 
-  // Best-effort weekly projections. Returns { [player_id]: statsObject } or
-  // null if the endpoint is unavailable (caller should fall back).
-  async function getWeeklyProjections(season, week, seasonType = 'regular') {
+  // Same weekly projections as getWeeklyProjections below, but keeping each
+  // entry's team/opponent instead of discarding everything except stats --
+  // needed for this-week matchup lookups (see Trends.buildTeamOpponentMap).
+  // Cached briefly (current-week projections do shift during the week);
+  // uncached before this it wasn't cached at all, so this is a net-new
+  // safety net against hammering the endpoint on rapid tab/league switches,
+  // not a behavior change anyone should notice.
+  async function getWeeklyProjectionsRaw(season, week, seasonType = 'regular', ttlMs = 20 * 60 * 1000) {
+    const cacheKey = `fcc_proj_raw_v1_${season}_${week}_${seasonType}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
+      } catch (e) { /* fall through to refetch */ }
+    }
     const attempts = [
       `${PROJ_BASE}/${season}/${week}?season_type=${seasonType}`,
       `https://api.sleeper.app/projections/nfl/${seasonType}/${season}/${week}`,
     ];
+    let entries = [];
     for (const url of attempts) {
       try {
         const data = await getJSON(url);
         if (Array.isArray(data) && data.length) {
-          const byId = {};
-          for (const entry of data) {
-            if (entry && entry.player_id) byId[entry.player_id] = entry.stats || {};
-          }
-          return byId;
+          entries = data
+            .filter(entry => entry && entry.player_id)
+            .map(entry => ({
+              player_id: entry.player_id,
+              stats: entry.stats || {},
+              opponent: entry.opponent || null,
+              team: entry.team || null,
+            }));
+          break;
         }
       } catch (e) {
         console.warn('Projection endpoint failed, trying next fallback:', url, e.message);
       }
     }
-    return null;
+    // Don't cache a total failure -- a transient miss shouldn't stay stuck
+    // "empty" for the TTL window when the next load might well succeed.
+    if (entries.length) {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: entries }));
+      } catch (e) {
+        console.warn('Projections cache write failed, continuing without cache.', e);
+      }
+    }
+    return entries;
+  }
+
+  // Best-effort weekly projections. Returns { [player_id]: statsObject } or
+  // null if the endpoint is unavailable (caller should fall back).
+  async function getWeeklyProjections(season, week, seasonType = 'regular') {
+    const entries = await getWeeklyProjectionsRaw(season, week, seasonType);
+    if (!entries.length) return null;
+    const byId = {};
+    for (const entry of entries) byId[entry.player_id] = entry.stats;
+    return byId;
   }
 
   // Real recent scoring history from completed weeks, using the official
@@ -163,8 +200,14 @@ const SleeperAPI = (() => {
   // (the current season's most recent week can still see late corrections)
   // but callers pulling a fully-finished prior season pass a much longer
   // one, since that data will never change again.
-  async function getActualWeeklyStats(season, week, ttlMs = 6 * 60 * 60 * 1000) {
-    const cacheKey = `fcc_actual_stats_v1_${season}_${week}`;
+  //
+  // Same underlying fetch as getActualWeeklyStats below, but keeping each
+  // entry's opponent/team instead of discarding everything except stats --
+  // needed for DVP and usage-trend tracking (see trends.js), which care
+  // who a game was against and which team a player suited up for, not
+  // just their stat line.
+  async function getActualWeeklyStatsRaw(season, week, ttlMs = 6 * 60 * 60 * 1000) {
+    const cacheKey = `fcc_actual_stats_raw_v1_${season}_${week}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -172,29 +215,42 @@ const SleeperAPI = (() => {
         if (Date.now() - parsed.ts < ttlMs) return parsed.data;
       } catch (e) { /* fall through to refetch */ }
     }
-    let byId = {};
+    let entries = [];
     try {
       const data = await getJSON(`https://api.sleeper.com/stats/nfl/${season}/${week}?season_type=regular`);
       if (Array.isArray(data)) {
-        for (const entry of data) {
-          if (entry && entry.player_id && entry.stats) byId[entry.player_id] = entry.stats;
-        }
+        entries = data
+          .filter(entry => entry && entry.player_id && entry.stats)
+          .map(entry => ({
+            player_id: entry.player_id,
+            stats: entry.stats,
+            opponent: entry.opponent || null,
+            team: entry.team || null,
+          }));
       }
     } catch (e) {
       console.warn(`Could not load actual stats for week ${week}`, e);
     }
     try {
-      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: byId }));
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: entries }));
     } catch (e) {
       console.warn('Actual-stats cache write failed, continuing without cache.', e);
     }
+    return entries;
+  }
+
+  async function getActualWeeklyStats(season, week, ttlMs = 6 * 60 * 60 * 1000) {
+    const entries = await getActualWeeklyStatsRaw(season, week, ttlMs);
+    const byId = {};
+    for (const entry of entries) byId[entry.player_id] = entry.stats;
     return byId;
   }
 
   return {
     getUser, getUserLeagues, getLeague, getRosters, getLeagueUsers,
     getMatchups, getTransactions, getNflState, getTrendingAdds,
-    getPlayersTrimmed, getWeeklyProjections, getRecentAveragePoints,
+    getPlayersTrimmed, getWeeklyProjections, getWeeklyProjectionsRaw,
+    getActualWeeklyStatsRaw, getRecentAveragePoints,
     getActualWeeklyStats,
   };
 })();

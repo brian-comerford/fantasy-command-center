@@ -490,6 +490,27 @@ button, input, select {
 .cbs-tag.agree { color: var(--turf-bright); }
 .cbs-tag.disagree { color: var(--chalk-dim); }
 
+.matchup-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: help;
+}
+.matchup-badge.good { background: rgba(79, 137, 100, 0.18); color: var(--turf-bright); }
+.matchup-badge.tough { background: rgba(196, 74, 74, 0.18); color: #E08484; }
+
+.usage-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: help;
+  border: 1px solid currentColor;
+}
+.usage-badge.up { color: var(--turf-bright); }
+.usage-badge.down { color: #E08484; }
+
 /* Tap/click popover for badges whose detail otherwise only shows on
    hover (title attribute) -- see initBadgeTapTooltips in app.js. Fixed
    positioning + JS-computed top/left, so no layout styling here beyond

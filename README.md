@@ -25,6 +25,14 @@ data from Sleeper's public API for all three of your leagues and helps you:
   [Stats: how your team's actually doing](#stats-how-your-teams-actually-doing)
   below.
 
+Every player across Lineup, Waivers, and their opponent's lineup can also
+carry a **Good matchup**/**Tough matchup** badge (how their actual
+opponent's defense has performed against their position all season) and a
+**Usage ↑**/**Usage ↓** badge (their touches trending up or down over
+their last few games) -- both computed from real box scores, no setup
+needed. See
+[Matchup and usage-trend badges](#matchup-and-usage-trend-badges) below.
+
 Optionally, it can also: blend in a second, independent projection source
 (ESPN) and flag how much the two agree; and put an "Ask Claude" research
 button on each swap/waiver suggestion and on the trade analyzer. See
@@ -192,6 +200,41 @@ average — you've outscored your own week's projection. Diffs and results
 are colored the same green/red convention as the rest of the app: green
 when you beat the number, red when you fell short.
 
+## Matchup and usage-trend badges
+
+Two more signals, shown as badges next to a player's name on the Lineup
+(both yours and your opponent's), Waivers, and Trade tabs — both computed
+entirely from real box scores the app is already pulling in, so they're
+always on, no setup needed. Neither has anything to show in the first
+week or so of a season; that's real "not enough data yet", not a bug,
+and it stops applying as the season goes on.
+
+**Good matchup / Tough matchup** — how many fantasy points a player's
+actual opponent this week has allowed to their position, all season,
+scored to your own league's settings. Every game any position has played
+against an NFL team gets rolled into that team's average, and every team
+gets ranked 1-32 against the other 31 at that position. **Good matchup**
+means that defense is in the top third of the league at allowing points
+to that position; **Tough matchup** means the bottom third. The
+unremarkable middle third gets no badge — same judgment call as the CBS
+agree/disagree tag, only a real signal is worth calling out. Needs at
+least one fully-completed week of stats league-wide before it can rank
+anything.
+
+**Usage ↑ / Usage ↓** — a player's touches (targets plus rush attempts)
+in their most recent game, compared against their own average over the
+games before that this season. A role that's expanding or shrinking
+often predicts next week's score better than last week's box score
+alone, which is exactly what this is meant to surface before it shows up
+in the point totals. Only flags a real swing (roughly a 20% move, and at
+least one extra touch, in either direction) — a steady role gets no
+badge. Needs at least two of that specific player's own games this
+season to have anything to compare.
+
+Hover (or tap, on mobile) either badge to see the actual numbers behind
+it — the defense's exact rank and points-per-game for the matchup badge,
+the specific touches and snap share for the usage badge.
+
 ## Optional: a Cloudflare Worker unlocks two more features
 
 Both of these are off unless you set them up, and the app works exactly as
@@ -289,6 +332,7 @@ claude-assist.js          optional "Ask Claude" research button (see above)
 scoring.js                raw stats -> fantasy points, per league's own rules; blends multiple sources
 optimizer.js              lineup optimizer, waiver gap-finder, trade comparison
 stats.js                  season/weekly actual-vs-projected performance (see above)
+trends.js                 DVP and usage-trend badges (see above)
 app.js                    state, wiring, rendering
 worker/proxy.js           Cloudflare Worker for the two optional features above -- not part of the deployed site
 ```

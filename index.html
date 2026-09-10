@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=11" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=12" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -173,6 +173,26 @@
       </div>
 
       <div class="info-section">
+        <h3>Good matchup / Tough matchup</h3>
+        <p class="info-example">
+          <span class="matchup-badge good">Good matchup</span>
+          <span class="matchup-badge tough">Tough matchup</span>
+        </p>
+        <p>How many fantasy points this player's actual opponent this week has allowed to their position all season, computed from real box scores (the same actual-stats data everything else on this page is built from) -- not a subjective guess. <strong>Good matchup</strong> means that defense is in the top third of the league at allowing points to that position; <strong>Tough matchup</strong> means the bottom third. The unremarkable middle third gets no badge, same as CBS agree/disagree above -- only a real signal is worth a callout. Needs at least one fully-completed week of stats league-wide, so there's nothing to show in the first week or so of a season.</p>
+        <p class="muted small">Hover (or tap, on mobile) the badge to see the exact rank and points-per-game.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>Usage ↑ / Usage ↓</h3>
+        <p class="info-example">
+          <span class="usage-badge up">Usage ↑</span>
+          <span class="usage-badge down">Usage ↓</span>
+        </p>
+        <p>This player's touches (targets plus rush attempts) in their most recent game, compared with their average over the games before that this season -- a leading indicator a single box score doesn't show, since a shrinking or expanding role often predicts next week's score better than last week's points did. Only shows up for a meaningful swing (roughly 20% or more, and at least one extra touch, in either direction); a steady role gets no badge. Needs at least two played games this season for that specific player, so it takes a couple of weeks to kick in for everyone -- earlier than that for anyone who missed time or just joined a roster.</p>
+        <p class="muted small">Hover (or tap, on mobile) the badge to see the exact touches and snap share behind it.</p>
+      </div>
+
+      <div class="info-section">
         <h3>Injury Watch tags</h3>
         <p class="info-example"><span class="injury-status-badge">Questionable (Knee)</span></p>
         <p>The status and body part come straight from Sleeper's own injury report. "Bench option" and "Waiver option" are this app's suggested replacement if that player can't go -- the bench one accounts for how removing them reshuffles your other flex slots, not just a naive same-position swap; the waiver one is the best free agent at their position. Either can be missing if there's genuinely nothing better available.</p>
@@ -197,14 +217,15 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=11"></script>
-<script src="player-id-crosswalk.js?v=11"></script>
-<script src="espn-api.js?v=11"></script>
-<script src="cbs-api.js?v=11"></script>
-<script src="claude-assist.js?v=11"></script>
-<script src="scoring.js?v=11"></script>
-<script src="optimizer.js?v=11"></script>
-<script src="stats.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="sleeper-api.js?v=12"></script>
+<script src="player-id-crosswalk.js?v=12"></script>
+<script src="espn-api.js?v=12"></script>
+<script src="cbs-api.js?v=12"></script>
+<script src="claude-assist.js?v=12"></script>
+<script src="scoring.js?v=12"></script>
+<script src="optimizer.js?v=12"></script>
+<script src="stats.js?v=12"></script>
+<script src="trends.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
