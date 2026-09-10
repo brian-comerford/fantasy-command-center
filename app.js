@@ -610,15 +610,18 @@ function renderInjuryWatch(data) {
     .map(id => ({ id, ...playerMeta[id], pts: valuation[id] ?? 0, isStarter: starters.has(id) }))
     .sort((a, b) => Number(b.isStarter) - Number(a.isStarter) || b.pts - a.pts);
 
-  if (!flagged.length) {
-    container.innerHTML = '<div class="no-swaps">No injury concerns flagged on your roster this week.</div>';
-    return;
-  }
-
   const heading = document.createElement('h2');
   heading.className = 'section-heading';
   heading.textContent = 'Injury watch';
   container.appendChild(heading);
+
+  if (!flagged.length) {
+    const empty = document.createElement('div');
+    empty.className = 'no-swaps';
+    empty.textContent = 'No injury concerns flagged on your roster this week.';
+    container.appendChild(empty);
+    return;
+  }
 
   const list = document.createElement('div');
   list.className = 'injury-watch-list';
