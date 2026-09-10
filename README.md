@@ -16,8 +16,13 @@ data from Sleeper's public API for all three of your leagues and helps you:
   out on both sides, not just yours.
 - **Waivers** — free agents who project higher than your weakest player
   at the same position, with "trending add" flags.
-- **Trade** — pick players from your roster and an opponent's, and see the
-  projected value on each side.
+- **Trade** — scans every other roster in your league for a bench player
+  who'd clearly upgrade one of your own starters (their own team already
+  starts someone better at that position, so it's a plausible ask), plus
+  the manual builder: pick players from your roster and an opponent's, and
+  see the projected value on each side. See
+  [Trade targets across the league](#trade-targets-across-the-league)
+  below.
 - **Stats** — once Sleeper has posted real stats for a week, your actual
   score against what your starting lineup was projected to score, plus a
   season roll-up: record, points per week, best/worst week, and how often
@@ -234,6 +239,35 @@ season to have anything to compare.
 Hover (or tap, on mobile) either badge to see the actual numbers behind
 it — the defense's exact rank and points-per-game for the matchup badge,
 the specific touches and snap share for the usage badge.
+
+## Trade targets across the league
+
+The Trade tab's manual builder (pick players from your roster and one
+opponent's, see the value on each side) needs you to already have a
+specific trade in mind. Above it, **Trade targets across the league**
+finds one for you: it checks every other roster's bench — not just the
+opponent you happen to have selected — for a player who'd clearly upgrade
+one of your own current starters.
+
+"Clearly upgrade" and "available" both come from the same lineup math the
+rest of the app already runs: a bench player only shows up here if their
+own team's mathematically optimal lineup doesn't have a starting spot for
+them either, meaning that team already starts someone at least as good at
+that position — this is what makes them a plausible ask rather than that
+team's best player at the position. The projected gain has to clear a
+real bar (2+ points) over your weakest starter there, so a marginal
+same-ish player doesn't clutter the list. Kickers and defenses are left
+out entirely; nobody trades for those.
+
+Each card names the other team, shows your starter next to their bench
+player and the gain, and has a **Build this trade** button that jumps
+straight into the manual builder below with both players already picked
+— a starting point to adjust (add more players, change the target) rather
+than a take-it-or-leave-it offer. It deliberately doesn't try to guess
+what you should send back beyond that one starter: figuring out what the
+other manager would actually accept is a judgment call CBS ranks and box
+scores can't make for you — that's what the builder and the Ask Claude
+button on each card are for.
 
 ## Optional: a Cloudflare Worker unlocks two more features
 

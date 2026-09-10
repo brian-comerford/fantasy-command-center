@@ -708,6 +708,7 @@ function renderActiveTabContent() {
   renderLineupTab(data);
   renderWaiversTab(data);
   renderTradeSetup(data);
+  renderTradeScan(data);
   // Stats is fetched lazily (it walks every played week's matchups and
   // projections, more calls than the other tabs need) -- only refresh it
   // here if it's the tab actually on screen; switchToTab covers the case
@@ -1020,6 +1021,81 @@ function renderWaiversTab(data) {
 }
 
 /* ---------------- Trade tab ---------------- */
+
+function teamNameForRoster(rosterId, rosters, users) {
+  const roster = rosters.find(r => r.roster_id === rosterId);
+  if (!roster) return `Team ${rosterId}`;
+  const user = users.find(u => u.user_id === roster.owner_id);
+  return user ? (user.metadata?.team_name || user.display_name) : `Team ${rosterId}`;
+}
+
+// League-wide trade scan: bench players on other rosters that would
+// clearly upgrade one of your own starters (see Optimizer.leagueTradeScan
+// for how "clearly" and "available" are defined). Each card can jump
+// straight into the manual trade builder below, pre-loaded with that
+// target and the starter it'd replace, so this is a starting point for
+// the builder rather than a dead end.
+function renderTradeScan(data) {
+  const { myRoster, rosters, users, league, playerMeta, valuation } = data;
+  const heading = el('tradeScanHeading');
+  const intro = el('tradeScanIntro');
+  const list = el('tradeScanList');
+  list.innerHTML = '';
+  if (!myRoster) {
+    heading.classList.add('hidden');
+    intro.classList.add('hidden');
+    return;
+  }
+
+  const opportunities = Optimizer.leagueTradeScan(
+    myRoster.roster_id, rosters, playerMeta, valuation, league.roster_positions
+  );
+
+  heading.classList.toggle('hidden', !opportunities.length);
+  intro.classList.toggle('hidden', !opportunities.length);
+  if (!opportunities.length) return;
+
+  opportunities.forEach(o => {
+    const oppName = teamNameForRoster(o.opponentRosterId, rosters, users);
+    const card = document.createElement('div');
+    card.className = 'swap-card';
+    card.innerHTML = `
+      <span class="swap-slot">${oppName}</span>
+      <div class="player-chip">
+        <span class="name">${o.myPlayer.name}</span>
+        <span class="meta">${o.myPlayer.pos} ${o.myPlayer.team} · ${o.myPlayer.pts.toFixed(1)} pts</span>
+        ${recentFormLine(o.myPlayer.id, data)}
+      </div>
+      <span class="swap-arrow">→</span>
+      <div class="player-chip">
+        <span class="name">${o.targetPlayer.name} ${matchupBadge(o.targetPlayer.id, data)} ${usageTrendBadge(o.targetPlayer.id, data)}</span>
+        <span class="meta">${o.targetPlayer.pos} ${o.targetPlayer.team} · ${o.targetPlayer.pts.toFixed(1)} pts</span>
+        ${recentFormLine(o.targetPlayer.id, data)}
+      </div>
+      <span class="swap-gain">+${o.edge.toFixed(1)}</span>
+      <button type="button" class="secondary-btn build-trade-btn">Build this trade</button>
+      ${askClaudeMarkup()}
+    `;
+
+    card.querySelector('.build-trade-btn').addEventListener('click', () => {
+      el('tradeOpponentSelect').value = String(o.opponentRosterId);
+      state.trade.sideA = new Set([o.myPlayer.id]);
+      state.trade.sideB = new Set([o.targetPlayer.id]);
+      renderTradePools(data);
+      document.querySelector('.trade-builder').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    const scanCacheKey = ClaudeAssist.cacheKeyFor({
+      type: 'trade', leagueId: league.league_id, season: data.season, week: data.week,
+      aId: o.myPlayer.id, bId: o.targetPlayer.id,
+    });
+    wireAskClaudeButton(card, scanCacheKey, () => ClaudeAssist.buildTradeQuestion({
+      league: league.name, week: data.week, season: data.season,
+      give: [o.myPlayer], receive: [o.targetPlayer],
+    }));
+    list.appendChild(card);
+  });
+}
 
 function renderTradeSetup(data) {
   const { myRoster, rosters, users, playerMeta } = data;

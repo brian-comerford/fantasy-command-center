@@ -214,6 +214,74 @@ const Optimizer = (() => {
     return { benchReplacement, waiverReplacement };
   }
 
+  // Scans every OTHER roster in the league for a bench player who'd
+  // clearly upgrade one of your own starters -- not a free agent (that's
+  // waiverTargets above), a player someone else already owns but isn't
+  // using. Only surfaces the target and which of your starters it beats;
+  // it deliberately doesn't try to auto-propose a "fair" player to send
+  // back -- guessing what the other manager would actually accept is a
+  // judgment call, not a numbers problem, so that's left to the trade
+  // builder (or Ask Claude) once you've picked a target here.
+  //
+  // "Bench" is read off optimalLineup for each other roster, same
+  // definition used everywhere else in this app: a player that team's own
+  // best-possible lineup doesn't have a starting slot for, meaning they
+  // already start someone at least as good at that position -- exactly
+  // what makes a target plausibly available rather than their best player
+  // at the position.
+  //
+  // K/DEF excluded -- practically nobody trades for a kicker or defense,
+  // so a "target" there would just be noise.
+  const TRADE_SCAN_POSITIONS = ['QB', 'RB', 'WR', 'TE'];
+  const MIN_TRADE_EDGE = 2;
+
+  function leagueTradeScan(myRosterId, rosters, playerMeta, valuation, rosterPositions, limit = 12) {
+    const myRoster = rosters.find(r => r.roster_id === myRosterId);
+    if (!myRoster) return [];
+
+    const myWeakestStarterByPos = {};
+    (myRoster.starters || []).forEach(id => {
+      if (!id || id === '0' || !playerMeta[id]) return;
+      const meta = playerMeta[id];
+      if (!TRADE_SCAN_POSITIONS.includes(meta.pos)) return;
+      const pts = valuation[id] ?? 0;
+      if (!myWeakestStarterByPos[meta.pos] || pts < myWeakestStarterByPos[meta.pos].pts) {
+        myWeakestStarterByPos[meta.pos] = { id, ...meta, pts };
+      }
+    });
+
+    const opportunities = [];
+    rosters.forEach(oppRoster => {
+      if (oppRoster.roster_id === myRosterId) return;
+      const oppOptimal = optimalLineup(rosterPositions, oppRoster.players || [], playerMeta, valuation);
+      oppOptimal.bench.forEach(benchEntry => {
+        const meta = playerMeta[benchEntry.id];
+        if (!meta || !TRADE_SCAN_POSITIONS.includes(meta.pos)) return;
+        const myWeak = myWeakestStarterByPos[meta.pos];
+        if (!myWeak) return;
+        const edge = Math.round((benchEntry.pts - myWeak.pts) * 100) / 100;
+        if (edge <= MIN_TRADE_EDGE) return;
+        opportunities.push({
+          targetPlayer: { id: benchEntry.id, ...meta, pts: benchEntry.pts },
+          myPlayer: myWeak,
+          opponentRosterId: oppRoster.roster_id,
+          edge,
+        });
+      });
+    });
+
+    // Keep only the single best target per (opponent, position) -- if a
+    // team has two bench players who'd both upgrade the same starter,
+    // only the better one is worth surfacing.
+    const bestByKey = {};
+    opportunities.forEach(o => {
+      const key = `${o.opponentRosterId}|${o.targetPlayer.pos}`;
+      if (!bestByKey[key] || o.edge > bestByKey[key].edge) bestByKey[key] = o;
+    });
+
+    return Object.values(bestByKey).sort((a, b) => b.edge - a.edge).slice(0, limit);
+  }
+
   function tradeSummary(sideAIds, sideBIds, playerMeta, valuation) {
     const summarize = (ids) => {
       const players = ids.map(id => ({ id, ...playerMeta[id], pts: valuation[id] ?? 0 }));
@@ -225,5 +293,5 @@ const Optimizer = (() => {
     return { a, b, diff: Math.round((a.total - b.total) * 100) / 100 };
   }
 
-  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, tradeSummary, eligiblePositions, injuryReplacements };
+  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements };
 })();

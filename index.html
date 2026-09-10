@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=13">
+<link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=13" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=14" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -97,6 +97,10 @@
     </section>
 
     <section id="tradeTab" class="tab-panel hidden">
+      <h2 class="section-heading hidden" id="tradeScanHeading">Trade targets across the league</h2>
+      <p class="muted hidden" id="tradeScanIntro">Bench players on other rosters who'd clearly upgrade one of your starters -- worth a look, since their own team already starts someone better there.</p>
+      <div id="tradeScanList" class="swaps-list"></div>
+
       <h2 class="section-heading">Trade analyzer</h2>
       <p class="muted">Pick players from your roster and the other team's roster to compare projected value.</p>
       <div class="trade-builder">
@@ -217,15 +221,15 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=13"></script>
-<script src="player-id-crosswalk.js?v=13"></script>
-<script src="espn-api.js?v=13"></script>
-<script src="cbs-api.js?v=13"></script>
-<script src="claude-assist.js?v=13"></script>
-<script src="scoring.js?v=13"></script>
-<script src="optimizer.js?v=13"></script>
-<script src="stats.js?v=13"></script>
-<script src="trends.js?v=13"></script>
-<script src="app.js?v=13"></script>
+<script src="sleeper-api.js?v=14"></script>
+<script src="player-id-crosswalk.js?v=14"></script>
+<script src="espn-api.js?v=14"></script>
+<script src="cbs-api.js?v=14"></script>
+<script src="claude-assist.js?v=14"></script>
+<script src="scoring.js?v=14"></script>
+<script src="optimizer.js?v=14"></script>
+<script src="stats.js?v=14"></script>
+<script src="trends.js?v=14"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
