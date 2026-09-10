@@ -189,13 +189,14 @@ async function ensureLeagueLoaded(leagueId) {
 }
 
 async function loadLeagueData(leagueId) {
-  const [league, rosters, users, nflState, playerMeta, trendingAdds] = await Promise.all([
+  const [league, rosters, users, nflState, playerMeta, trendingAdds, cbsRanks] = await Promise.all([
     SleeperAPI.getLeague(leagueId),
     SleeperAPI.getRosters(leagueId),
     SleeperAPI.getLeagueUsers(leagueId),
     SleeperAPI.getNflState(),
     SleeperAPI.getPlayersTrimmed(),
     SleeperAPI.getTrendingAdds().catch(() => []),
+    CbsAPI.getSleeperRanks().catch(e => { console.warn('CBS rankings unavailable, continuing without that signal.', e); return {}; }),
   ]);
 
   const season = league.season;
@@ -241,28 +242,48 @@ async function loadLeagueData(leagueId) {
   const rosteredIds = [];
   rosters.forEach(r => (r.players || []).forEach(pid => rosteredIds.push(pid)));
   const trendingIds = new Set((trendingAdds || []).map(t => t.player_id));
+  const usedCbs = Object.keys(cbsRanks).length > 0;
 
   state.leagueData[leagueId] = {
-    league, rosters, users, myRoster, playerMeta, valuation, agreement,
+    league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
     week, season, projSource, rosteredIds, trendingIds,
   };
 
+  const cbsNote = usedCbs ? ', with CBS\'s consensus rank as a tiebreaker' : '';
   el('weekReadout').textContent = `${league.season} · Week ${week}`;
   el('statusLine').textContent = projSource !== 'projection'
     ? `Live projections weren't available this time, so rankings use each player's actual scoring average over their last 3 games instead.`
     : usedEspn
-      ? `Blending Sleeper + ESPN projections, scored to ${league.name}'s own settings.`
-      : `Using live weekly projections, scored to ${league.name}'s own settings.`;
+      ? `Blending Sleeper + ESPN projections${cbsNote}, scored to ${league.name}'s own settings.`
+      : `Using live weekly projections${cbsNote}, scored to ${league.name}'s own settings.`;
 }
 
-// Small "how much do the sources agree" pill for a player, or '' if there's
-// nothing to show (no ESPN data for this player, or ESPN isn't configured).
-function agreementBadge(playerId, data) {
-  const info = data.agreement && data.agreement[playerId];
-  if (!info || info.level === 'single-source') return '';
-  const label = info.level === 'strong' ? 'Strong' : info.level === 'moderate' ? 'Mixed' : 'Split';
-  const tooltip = info.sources.map(s => `${s.name}: ${s.pts.toFixed(1)}`).join(' · ');
-  return `<span class="agreement-badge level-${info.level}" title="${tooltip}">${label}</span>`;
+// Confidence markup for a suggested swap: a Strong/Mixed/Split pill based on
+// how close Sleeper and ESPN's numbers are for the incoming player (omitted
+// if only one of them has data), plus a separate CBS tiebreaker tag when
+// CBS's same-position consensus rank also has an opinion on this exact
+// swap. CBS only gives a rank, not a point value, so it never affects the
+// numbers above -- it's shown purely as "does a third source agree".
+function confidenceBadges(incomingId, outgoingId, data) {
+  let html = '';
+
+  const info = data.agreement && data.agreement[incomingId];
+  if (info && info.level !== 'single-source') {
+    const label = info.level === 'strong' ? 'Strong' : info.level === 'moderate' ? 'Mixed' : 'Split';
+    const tooltip = info.sources.map(s => `${s.name}: ${s.pts.toFixed(1)}`).join(' · ');
+    html += `<span class="agreement-badge level-${info.level}" title="${tooltip}">${label}</span>`;
+  }
+
+  const cbs = data.cbsRanks || {};
+  const incomingRank = cbs[incomingId];
+  const outgoingRank = outgoingId ? cbs[outgoingId] : null;
+  if (incomingRank && outgoingRank && incomingRank.pos === outgoingRank.pos) {
+    const agrees = incomingRank.rank < outgoingRank.rank;
+    const tooltip = `CBS ${incomingRank.pos} rank: #${incomingRank.rank} vs #${outgoingRank.rank}`;
+    html += ` <span class="cbs-tag ${agrees ? 'agree' : 'disagree'}" title="${tooltip}">${agrees ? 'CBS agrees' : 'CBS disagrees'}</span>`;
+  }
+
+  return html;
 }
 
 /* ---------------- Tab switching ---------------- */
@@ -326,7 +347,7 @@ function renderLineupTab(data) {
         </div>
         <span class="swap-arrow">→</span>
         <div class="player-chip">
-          <span class="name">${s.benchPlayer.name} ${agreementBadge(s.benchPlayer.id, data)}</span>
+          <span class="name">${s.benchPlayer.name} ${confidenceBadges(s.benchPlayer.id, s.starterPlayer ? s.starterPlayer.id : null, data)}</span>
           <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts</span>
         </div>
         <span class="swap-gain">+${s.gain.toFixed(1)}</span>
@@ -393,7 +414,7 @@ function renderWaiversTab(data) {
     card.className = 'waiver-card';
     card.innerHTML = `
       <div class="player-chip">
-        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${agreementBadge(s.add.id, data)}</span>
+        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${confidenceBadges(s.add.id, s.considerDropping.id, data)}</span>
         <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts</span>
       </div>
       <span class="swap-arrow">could replace</span>

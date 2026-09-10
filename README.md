@@ -61,13 +61,27 @@ analytics or accounts involved.)
   a generic PPR assumption, so the numbers should match what your league
   actually pays out.
 
+## A third opinion: CBS's consensus rank
+
+Alongside Sleeper's projections, the app always pulls in CBS Sports'
+consensus rankings too — no setup needed, since CBS's rankings endpoint
+(unlike ESPN's) happens to allow direct cross-origin reads. CBS only
+publishes an integer rank per position (e.g. "Ja'Marr Chase, WR #1"), not a
+point value, and it's their season-long overall board rather than a
+week-specific number — so it's never averaged into the point projection.
+Instead, swap and waiver suggestions get a **"CBS agrees" / "CBS disagrees"**
+tag when CBS's board has an opinion on that exact same-position comparison,
+as a third-opinion tiebreaker alongside the Sleeper/ESPN agreement badge
+below.
+
 ## Optional: blending in ESPN's projections
 
-By default the app ranks players using Sleeper's own projections alone. You
-can optionally blend in ESPN's independent projections too — the two get
-averaged per player, and swap/waiver suggestions get a badge showing how
-much the sources agree (**Strong** / **Mixed** / **Split**), so a suggestion
-both sources like looks different from one that's a coin flip.
+By default the app ranks players using Sleeper's own projections alone
+(plus CBS's rank-based tiebreaker above). You can optionally blend in
+ESPN's independent projections too — the two get averaged per player, and
+swap/waiver suggestions get a badge showing how much the sources agree
+(**Strong** / **Mixed** / **Split**), so a suggestion both sources like
+looks different from one that's a coin flip.
 
 This only covers QB/RB/WR/TE — kicker and defense scoring differ enough
 between the two providers (distance-bucketed field goals, points-allowed
@@ -98,14 +112,16 @@ same way it already caches Sleeper's player list.
 ## Structure
 
 ```
-index.html            shell + markup
-styles.css             design system
-sleeper-api.js         all Sleeper API calls + caching
-espn-api.js             optional ESPN projections + player-ID crosswalk (see above)
-scoring.js              raw stats -> fantasy points, per league's own rules; blends multiple sources
-optimizer.js            lineup optimizer, waiver gap-finder, trade comparison
-app.js                  state, wiring, rendering
-worker/espn-proxy.js    Cloudflare Worker for the optional ESPN blending -- not part of the deployed site
+index.html               shell + markup
+styles.css                design system
+sleeper-api.js            all Sleeper API calls + caching
+player-id-crosswalk.js    maps Sleeper/ESPN/CBS IDs for the same players
+espn-api.js               optional ESPN projections (see above)
+cbs-api.js                CBS consensus rank, used as a tiebreaker (see above)
+scoring.js                raw stats -> fantasy points, per league's own rules; blends multiple sources
+optimizer.js              lineup optimizer, waiver gap-finder, trade comparison
+app.js                    state, wiring, rendering
+worker/espn-proxy.js      Cloudflare Worker for the optional ESPN blending -- not part of the deployed site
 ```
 
 Everything the site itself needs is plain JS/CSS/HTML — no npm install, no

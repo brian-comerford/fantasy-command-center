@@ -25,60 +25,20 @@ const EspnAPI = (() => {
     68: 'fum', 72: 'fum_lost',
   };
 
-  // Community-maintained ID crosswalk (mfl/sleeper/espn/yahoo/etc IDs for the
-  // same players). Static file, refreshed regularly upstream, CORS-open.
-  const CROSSWALK_URL = 'https://raw.githubusercontent.com/dynastyprocess/data/master/files/db_playerids.csv';
-  const CROSSWALK_CACHE_KEY = 'fcc_espn_crosswalk_v1';
-
-  function parseCrosswalkCsv(text) {
-    const lines = text.split('\n');
-    const header = lines[0].split(',');
-    const sleeperIdx = header.indexOf('sleeper_id');
-    const espnIdx = header.indexOf('espn_id');
-    const map = {}; // sleeper_id -> espn_id
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) continue;
-      const cols = line.split(',');
-      const sleeperId = cols[sleeperIdx];
-      const espnId = cols[espnIdx];
-      if (sleeperId && espnId) map[sleeperId] = espnId;
-    }
-    return map;
-  }
-
-  async function getSleeperToEspnMap() {
-    const cached = localStorage.getItem(CROSSWALK_CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Date.now() - parsed.ts < 20 * 60 * 60 * 1000) return parsed.data;
-      } catch (e) { /* fall through to refetch */ }
-    }
-    const res = await fetch(CROSSWALK_URL);
-    if (!res.ok) throw new Error(`Player ID crosswalk -> HTTP ${res.status}`);
-    const text = await res.text();
-    const map = parseCrosswalkCsv(text);
-    try {
-      localStorage.setItem(CROSSWALK_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: map }));
-    } catch (e) {
-      console.warn('ID crosswalk too large for localStorage, continuing without cache.', e);
-    }
-    return map;
-  }
-
   // Returns { [sleeper_id]: statsObject } using Sleeper's own stat key names,
   // for QB/RB/WR/TE only, or null if the proxy isn't configured/reachable.
   async function getWeeklyProjections(proxyBaseUrl, season, week) {
     if (!proxyBaseUrl) return null;
     const url = `${proxyBaseUrl.replace(/\/$/, '')}/?season=${season}&week=${week}`;
-    const [espnPlayers, sleeperToEspn] = await Promise.all([
+    const [espnPlayers, crosswalk] = await Promise.all([
       fetch(url).then(r => { if (!r.ok) throw new Error(`ESPN proxy -> HTTP ${r.status}`); return r.json(); }),
-      getSleeperToEspnMap(),
+      PlayerIdCrosswalk.getMap(),
     ]);
 
     const espnToSleeper = {};
-    for (const [sleeperId, espnId] of Object.entries(sleeperToEspn)) espnToSleeper[espnId] = sleeperId;
+    for (const [sleeperId, ids] of Object.entries(crosswalk)) {
+      if (ids.espnId) espnToSleeper[ids.espnId] = sleeperId;
+    }
 
     const out = {};
     for (const player of espnPlayers) {
@@ -99,5 +59,5 @@ const EspnAPI = (() => {
     return out;
   }
 
-  return { getWeeklyProjections, getSleeperToEspnMap };
+  return { getWeeklyProjections };
 })();
