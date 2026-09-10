@@ -175,8 +175,8 @@ function renderLeagueTabs() {
   });
 }
 
-async function ensureLeagueLoaded(leagueId) {
-  if (state.leagueData[leagueId]) return;
+async function ensureLeagueLoaded(leagueId, forceRefresh = false) {
+  if (state.leagueData[leagueId] && !forceRefresh) return;
   showLoading('Pulling rosters and projections…');
   try {
     await loadLeagueData(leagueId);
@@ -331,6 +331,7 @@ async function loadLeagueData(leagueId) {
     : usedEspn
       ? `Blending Sleeper + ESPN projections${cbsNote}, scored to ${league.name}'s own settings.`
       : `Using live weekly projections${cbsNote}, scored to ${league.name}'s own settings.`;
+  lastRefreshedAt = Date.now();
 }
 
 // Confidence markup for a suggested swap: a Strong/Mixed/Split pill based on
@@ -722,6 +723,35 @@ function renderTradeResult() {
     <div class="trade-verdict">${verdict}</div>
   `;
 }
+
+/* ---------------- Refresh on reopen ---------------- */
+
+// A page reload naturally re-fetches everything (state.leagueData starts
+// empty every time this script runs). But on mobile, "reopening the app"
+// usually isn't a reload at all -- the browser just resumes a backgrounded
+// tab exactly where it left off, same JS state, same stale data, with no
+// signal to refetch unless something asks for one. visibilitychange
+// (tab brought back to the foreground) and pageshow with `persisted: true`
+// (restored from the back-forward cache -- the mechanism behind a
+// suspended mobile tab resuming) are that signal. Debounced so rapid
+// app-switching doesn't refetch on every glance.
+let lastRefreshedAt = Date.now();
+const MIN_REFRESH_INTERVAL_MS = 60 * 1000;
+
+async function refreshActiveLeagueIfDue() {
+  if (!state.activeLeagueId || el('dashboard').classList.contains('hidden')) return;
+  if (Date.now() - lastRefreshedAt < MIN_REFRESH_INTERVAL_MS) return;
+  lastRefreshedAt = Date.now();
+  await ensureLeagueLoaded(state.activeLeagueId, true);
+  renderActiveTabContent();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshActiveLeagueIfDue();
+});
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) refreshActiveLeagueIfDue();
+});
 
 /* ---------------- Boot ---------------- */
 

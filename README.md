@@ -84,6 +84,12 @@ account — still no third-party analytics.)
   real data (they were active but barely played), not a bug, and it stops
   mattering the moment that player's first game of the new season is in
   the books.
+- Reopening the app refreshes its data, including on mobile when the
+  browser just resumes a backgrounded tab rather than truly reloading the
+  page (the normal way "reopening" works on a phone) -- it listens for the
+  tab becoming visible again or being restored from the browser's
+  back-forward cache, and refetches if it's been at least a minute since
+  the last load, so it doesn't refetch on every brief glance.
 
 ## A third opinion: CBS's consensus rank
 
