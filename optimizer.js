@@ -51,18 +51,24 @@ const Optimizer = (() => {
       .sort((a, b) => b.pts - a.pts);
 
     const used = new Set();
-    const assignments = []; // { slot, id }
+    const assignments = []; // { slot, id, idx }
 
-    for (const { slot } of orderedSlots) {
+    for (const { slot, idx } of orderedSlots) {
       const eligible = eligiblePositions(slot);
       const pick = pool.find(p => !used.has(p.id) && eligible.includes(p.pos));
       if (pick) {
         used.add(pick.id);
-        assignments.push({ slot, id: pick.id, pts: pick.pts });
+        assignments.push({ slot, id: pick.id, pts: pick.pts, idx });
       } else {
-        assignments.push({ slot, id: null, pts: 0 });
+        assignments.push({ slot, id: null, pts: 0, idx });
       }
     }
+
+    // Return assignments in the original roster_positions order (not the
+    // scarcity-fill order used above) so callers can zip them against
+    // currentStarters, which Sleeper also orders by roster_positions.
+    assignments.sort((a, b) => a.idx - b.idx);
+    assignments.forEach(a => delete a.idx);
 
     const bench = pool.filter(p => !used.has(p.id));
     const totalPts = assignments.reduce((sum, a) => sum + a.pts, 0);
