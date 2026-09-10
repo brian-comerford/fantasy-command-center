@@ -45,6 +45,13 @@ account — still no third-party analytics.)
 3. GitHub gives you a URL like `https://yourname.github.io/reponame/` —
    that's your app, reachable from your phone too.
 
+**After every deploy**, bump the `?v=N` query string on every local file
+reference in `index.html` (the CSS, the logo, and each `.js` file) by one.
+GitHub Pages doesn't force visitors' browsers to refetch changed files on
+its own, so without this a returning visitor can keep seeing old code or
+styles indefinitely after you've pushed an update — bumping the version
+number changes the URL, which forces a fresh fetch.
+
 ## Honest notes on data reliability
 
 - **Rosters, matchups, users, and league settings** come from Sleeper's
