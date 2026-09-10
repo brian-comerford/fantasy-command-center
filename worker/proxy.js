@@ -132,7 +132,10 @@ async function handleClaudeAssist(request, env) {
         'at all). This is displayed as plain text on a small card, not ' +
         'rendered as markdown, so any formatting characters would show up ' +
         'literally.',
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
+      // 3 was too tight for a two-player comparison (each player alone can
+      // take 2+ searches for injury/role/matchup), so Claude was running
+      // out of budget partway through and returning a hedged non-answer.
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
       messages: [{ role: 'user', content: question }],
     }),
   });
@@ -146,18 +149,25 @@ async function handleClaudeAssist(request, env) {
   }
 
   const data = await anthropicRes.json();
-  // Web search splits the answer into several small text blocks around
-  // each citation point -- they're fragments of one continuous paragraph,
-  // not separate paragraphs, so they're joined directly (no separator)
-  // rather than with blank lines between them. Whitespace is then
-  // normalized in case a fragment boundary left a run-together word or a
-  // doubled space.
-  const text = (data.content || [])
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Web search splits the answer into several small text blocks: adjacent
+  // ones (no tool call between them) are fragments of one continuous
+  // passage around a citation point, so those get concatenated directly.
+  // But a text block separated from the next by a tool_use/tool_result --
+  // e.g. Claude's "I'll search for X" remark before the search, then its
+  // real answer after -- is a genuinely separate remark, not a citation
+  // fragment, and needs a space (not zero, not "\n\n") between it and
+  // what follows or the words run together.
+  let text = '';
+  let lastWasText = false;
+  for (const block of data.content || []) {
+    if (block.type === 'text') {
+      text += (lastWasText || !text ? '' : ' ') + block.text;
+      lastWasText = true;
+    } else {
+      lastWasText = false;
+    }
+  }
+  text = text.replace(/\s+/g, ' ').trim();
 
   return new Response(JSON.stringify({ text: text || "Claude didn't return a text answer." }), {
     headers: { ...corsHeaders(), 'content-type': 'application/json' },
