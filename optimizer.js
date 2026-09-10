@@ -77,26 +77,37 @@ const Optimizer = (() => {
   }
 
   // Compares the optimal lineup against the roster's currently-set starters
-  // and returns the specific swaps worth making.
+  // and returns the specific swaps worth making. Comparing by slot index
+  // would flag a false "swap" whenever two starters holding identical slots
+  // (e.g. two WR spots) just get reordered between each other, since neither
+  // player actually leaves the starting lineup - so this compares the SET of
+  // who's starting instead, and only reports a swap where someone currently
+  // benched should genuinely replace someone currently starting.
   function suggestedSwaps(rosterPositions, currentStarters, playerIds, playerMeta, valuation) {
     const optimal = optimalLineup(rosterPositions, playerIds, playerMeta, valuation);
-    const startSlots = rosterPositions.filter(s => s !== 'BN' && s !== 'IR' && s !== 'TAXI');
+
+    const currentSet = new Set(currentStarters.filter(id => id && playerMeta[id]));
+    const optimalSet = new Set(optimal.assignments.map(a => a.id).filter(Boolean));
+
+    const additions = optimal.assignments.filter(a => a.id && !currentSet.has(a.id));
+    const removedPool = currentStarters.filter(id => id && playerMeta[id] && !optimalSet.has(id));
 
     const swaps = [];
-    startSlots.forEach((slot, i) => {
-      const currentId = currentStarters[i];
-      const optimalId = optimal.assignments[i] ? optimal.assignments[i].id : null;
-      if (currentId !== optimalId && optimalId) {
-        const currentPts = currentId ? (valuation[currentId] ?? 0) : 0;
-        const optimalPts = valuation[optimalId] ?? 0;
-        if (optimalPts > currentPts + 0.01) {
-          swaps.push({
-            slot,
-            benchPlayer: { id: optimalId, ...playerMeta[optimalId], pts: optimalPts },
-            starterPlayer: currentId ? { id: currentId, ...playerMeta[currentId], pts: currentPts } : null,
-            gain: Math.round((optimalPts - currentPts) * 100) / 100,
-          });
-        }
+    additions.forEach(addition => {
+      const eligible = eligiblePositions(addition.slot);
+      let matchIdx = removedPool.findIndex(id => eligible.includes(playerMeta[id].pos));
+      if (matchIdx === -1 && removedPool.length) matchIdx = 0;
+      const currentId = matchIdx !== -1 ? removedPool.splice(matchIdx, 1)[0] : null;
+
+      const currentPts = currentId ? (valuation[currentId] ?? 0) : 0;
+      const optimalPts = valuation[addition.id] ?? 0;
+      if (optimalPts > currentPts + 0.01) {
+        swaps.push({
+          slot: addition.slot,
+          benchPlayer: { id: addition.id, ...playerMeta[addition.id], pts: optimalPts },
+          starterPlayer: currentId ? { id: currentId, ...playerMeta[currentId], pts: currentPts } : null,
+          gain: Math.round((optimalPts - currentPts) * 100) / 100,
+        });
       }
     });
     return { optimal, swaps };
