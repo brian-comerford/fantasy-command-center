@@ -419,6 +419,7 @@ function askClaudeMarkup() {
     <div class="ask-claude-wrap">
       <button type="button" class="ask-claude-btn">Ask Claude</button>
       <div class="ask-claude-result hidden"></div>
+      <div class="ask-claude-projections hidden"></div>
       <div class="ask-claude-meta hidden"></div>
     </div>
   `;
@@ -446,7 +447,29 @@ function wireAskClaudeButton(card, cacheKey, questionFn) {
   const btn = card.querySelector('.ask-claude-btn');
   if (!btn) return;
   const resultEl = card.querySelector('.ask-claude-result');
+  const projEl = card.querySelector('.ask-claude-projections');
   const metaEl = card.querySelector('.ask-claude-meta');
+
+  // answer is { text, projections, ts? } -- projections is Claude's own
+  // optional per-player point estimate (only buildSwapQuestion asks for
+  // one right now), rendered as its own row of chips rather than buried in
+  // the prose. null/empty just means this question didn't ask for one.
+  function showAnswer(answer) {
+    resultEl.classList.remove('hidden');
+    resultEl.textContent = answer.text;
+    projEl.innerHTML = '';
+    if (answer.projections && answer.projections.length) {
+      answer.projections.forEach(p => {
+        const chip = document.createElement('span');
+        chip.className = 'proj-chip';
+        chip.textContent = `Claude: ${p.name} ${p.points.toFixed(1)} pts`;
+        projEl.appendChild(chip);
+      });
+      projEl.classList.remove('hidden');
+    } else {
+      projEl.classList.add('hidden');
+    }
+  }
 
   const cached = ClaudeAssist.getCached(cacheKey);
   if (cached) btn.textContent = "Show Claude's answer";
@@ -456,8 +479,7 @@ function wireAskClaudeButton(card, cacheKey, questionFn) {
     if (!alreadyShown) {
       const existing = ClaudeAssist.getCached(cacheKey);
       if (existing) {
-        resultEl.classList.remove('hidden');
-        resultEl.textContent = existing.text;
+        showAnswer(existing);
         metaEl.classList.remove('hidden');
         metaEl.textContent = `Cached answer from ${relativeTime(existing.ts)} -- no new query sent. Click "Ask again" for a fresh (billed) one.`;
         btn.textContent = 'Ask again (new query)';
@@ -470,12 +492,13 @@ function wireAskClaudeButton(card, cacheKey, questionFn) {
     btn.textContent = 'Researching…';
     resultEl.classList.remove('hidden');
     resultEl.textContent = '';
+    projEl.classList.add('hidden');
     metaEl.classList.add('hidden');
     metaEl.textContent = '';
     try {
-      const text = await ClaudeAssist.ask(state.workerProxyUrl, questionFn());
-      ClaudeAssist.setCached(cacheKey, text);
-      resultEl.textContent = text;
+      const answer = await ClaudeAssist.ask(state.workerProxyUrl, questionFn());
+      ClaudeAssist.setCached(cacheKey, answer);
+      showAnswer(answer);
       btn.textContent = 'Ask again (new query)';
       btn.dataset.shown = '1';
     } catch (e) {

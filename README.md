@@ -231,6 +231,14 @@ of players on each side, for a trade) -- coming back and clicking again
 shows the same answer for free instead of spending tokens again, with an
 "Ask again" option if you want a fresh, newly-researched one.
 
+For swap suggestions specifically, Claude is also asked to give its own
+point projection for each player based on what it found in its research --
+shown as a couple of small gold chips under the answer (e.g. "Claude:
+Player Name 14.5 pts"), separate from Sleeper/ESPN/CBS above. This is
+Claude's own research-informed guess, not blended into the app's actual
+rankings anywhere -- it's there to sanity-check the suggestion against,
+not to replace the projection the swap was actually built on.
+
 This needs its own one-time setup, separate from the Worker deployment
 above:
 

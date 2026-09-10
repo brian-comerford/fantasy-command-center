@@ -20,7 +20,7 @@
  * really deployed, so a stale-code guess doesn't have to be one.
  */
 
-const WORKER_VERSION = 2;
+const WORKER_VERSION = 3;
 
 export default {
   async fetch(request, env) {
@@ -152,7 +152,10 @@ async function handleClaudeAssist(request, env) {
         'rendered as markdown, so any formatting characters would show up ' +
         'literally. Do not narrate what you are about to do (no "I\'ll ' +
         'search for...", "Let me check...", etc.) -- just give the final ' +
-        'answer directly.',
+        'answer directly. If the question asks you to end with a ' +
+        '"PROJECTIONS:" line, include exactly that line, in exactly the ' +
+        'format requested, as the very last line of your response -- that ' +
+        'one line is the only exception to the plain-prose rule above.',
       // 3 was too tight for a two-player comparison (each player alone can
       // take 2+ searches for injury/role/matchup), so Claude was running
       // out of budget partway through and returning a hedged non-answer.
@@ -186,7 +189,7 @@ async function handleClaudeAssist(request, env) {
   content.forEach((block, i) => {
     if (block.type !== 'text') lastToolBlockIndex = i;
   });
-  const text = content
+  const rawText = content
     .slice(lastToolBlockIndex + 1)
     .filter(block => block.type === 'text')
     .map(block => block.text)
@@ -194,7 +197,32 @@ async function handleClaudeAssist(request, env) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return new Response(JSON.stringify({ text: text || "Claude didn't return a text answer." }), {
+  // Some questions (see buildSwapQuestion in claude-assist.js) ask Claude
+  // to end its answer with one "PROJECTIONS: Name: N pts | Name: N pts"
+  // line -- its own point estimate per player, separate from the prose
+  // analysis above it. Pulled out here into structured data so the client
+  // can show it as its own callout instead of leaving it sitting in the
+  // paragraph text. Questions that don't ask for it just won't have a
+  // match, and a malformed line degrades harmlessly to null (the prose
+  // text is still returned either way).
+  let text = rawText;
+  let projections = null;
+  const projMatch = rawText.match(/PROJECTIONS:\s*(.+)\s*$/i);
+  if (projMatch) {
+    const parsed = projMatch[1]
+      .split('|')
+      .map(part => {
+        const m = part.trim().match(/^(.+?):\s*([\d.]+)\s*pts?\.?$/i);
+        return m ? { name: m[1].trim(), points: parseFloat(m[2]) } : null;
+      })
+      .filter(Boolean);
+    if (parsed.length) {
+      projections = parsed;
+      text = rawText.slice(0, projMatch.index).trim();
+    }
+  }
+
+  return new Response(JSON.stringify({ text: text || "Claude didn't return a text answer.", projections }), {
     headers: { ...corsHeaders(), 'content-type': 'application/json' },
   });
 }

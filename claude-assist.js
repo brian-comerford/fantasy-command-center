@@ -51,9 +51,12 @@ const ClaudeAssist = (() => {
     return loadCacheStore()[key] || null;
   }
 
-  function setCached(key, text) {
+  // answer is { text, projections }: projections is Claude's own optional
+  // per-player point estimate (see buildSwapQuestion), null when the
+  // question didn't ask for one or Claude didn't return a parseable line.
+  function setCached(key, answer) {
     const store = loadCacheStore();
-    store[key] = { text, ts: Date.now() };
+    store[key] = { text: answer.text, projections: answer.projections || null, ts: Date.now() };
     pruneAndSave(store);
   }
 
@@ -69,20 +72,29 @@ const ClaudeAssist = (() => {
       throw new Error(`HTTP ${res.status}${errText ? `: ${errText}` : ''}`);
     }
     const data = await res.json();
-    return data.text;
+    return { text: data.text, projections: data.projections || null };
   }
 
   function buildSwapQuestion({ league, week, season, incoming, outgoing, slot }) {
     const outgoingPart = outgoing
       ? `currently-started ${outgoing.name} (${outgoing.pos} ${outgoing.team})`
       : `an empty ${slot} slot`;
+    const projectionAsk = outgoing
+      ? `Then, based on what you found, end your answer with exactly one more line in ` +
+        `exactly this format and nothing else on that line: ` +
+        `PROJECTIONS: ${incoming.name}: X pts | ${outgoing.name}: Y pts -- replacing X and Y ` +
+        `with your own best-estimate point projection for each player this week, one decimal place.`
+      : `Then, based on what you found, end your answer with exactly one more line in ` +
+        `exactly this format and nothing else on that line: PROJECTIONS: ${incoming.name}: X pts ` +
+        `-- replacing X with your own best-estimate point projection for that player this week, ` +
+        `one decimal place.`;
     return `I play fantasy football in a league called "${league}" (${season} season, ` +
       `Week ${week}). My lineup tool suggests starting ${incoming.name} ` +
       `(${incoming.pos} ${incoming.team}) over ${outgoingPart} in my ${slot} slot. ` +
       `Search for the latest news on both players -- injury status, snap counts/role, ` +
       `this week's matchup difficulty, and any beat-reporter or start/sit buzz -- and ` +
       `give me a short, concrete take (3-5 sentences) on whether this swap looks right ` +
-      `this week.`;
+      `this week. ${projectionAsk}`;
   }
 
   function buildWaiverQuestion({ league, week, season, add, drop }) {

@@ -530,6 +530,22 @@ button, input, select {
   color: var(--chalk-dim);
 }
 
+.ask-claude-projections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.proj-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  background: rgba(216, 169, 59, 0.12);
+  border: 1px solid var(--gold-dim);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
 .waiver-edge {
   margin-left: auto;
   color: var(--turf-bright);
