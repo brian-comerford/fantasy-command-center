@@ -154,14 +154,17 @@ const SleeperAPI = (() => {
   //
   // Cached per (season, week) in localStorage since a completed week's
   // actual stats are effectively immutable -- no reason to refetch weeks
-  // 1-16 on every load as the season goes on.
-  async function getActualWeeklyStats(season, week) {
+  // 1-16 on every load as the season goes on. ttlMs defaults to 6 hours
+  // (the current season's most recent week can still see late corrections)
+  // but callers pulling a fully-finished prior season pass a much longer
+  // one, since that data will never change again.
+  async function getActualWeeklyStats(season, week, ttlMs = 6 * 60 * 60 * 1000) {
     const cacheKey = `fcc_actual_stats_v1_${season}_${week}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        if (Date.now() - parsed.ts < 6 * 60 * 60 * 1000) return parsed.data;
+        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
       } catch (e) { /* fall through to refetch */ }
     }
     let byId = {};

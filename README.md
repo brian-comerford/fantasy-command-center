@@ -68,7 +68,17 @@ account — still no third-party analytics.)
   a bye week or a game missed to injury doesn't drag it down with a false
   zero, unlike simply averaging whatever a matchup shows for that week
   (which can't tell "didn't play" apart from "played and scored zero").
-  Nothing shows here until at least one week of the season is complete.
+  In Week 1, before this season has any completed weeks of its own, these
+  numbers fall back to **last season's** actuals instead of showing
+  nothing -- each player's most recent game with recorded stats (not
+  necessarily Week 18, if their season ended earlier) and their full
+  season average, labeled with the year so it's never mistaken for a
+  current-season number. One honest caveat: a handful of star players on
+  teams that had already locked their playoff seeding get benched for
+  Week 18, the season's last week, so "last game" can show a misleadingly
+  low number for them specifically -- that's real data (they were active
+  but barely played), not a bug, and it stops mattering the moment Week 2
+  arrives and this reverts to true current-season numbers.
 
 ## A third opinion: CBS's consensus rank
 

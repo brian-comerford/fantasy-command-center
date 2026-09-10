@@ -241,11 +241,11 @@ async function loadLeagueData(leagueId) {
 
   // Actual scoring history, for comparison against the projection above --
   // last week's real total plus a season average that only counts weeks a
-  // player actually played (see getActualWeeklyStats). Nothing to show
-  // yet in Week 1, before any week has been completed.
+  // player actually played (see getActualWeeklyStats).
   let lastWeekPoints = {};
   let seasonAvgPoints = {};
   let seasonGamesPlayed = {};
+  let recentFormPriorSeason = false;
   const lastCompletedWeek = week - 1;
   if (lastCompletedWeek >= 1) {
     try {
@@ -269,6 +269,40 @@ async function loadLeagueData(leagueId) {
     } catch (e) {
       console.warn('Could not compute actual-performance history, continuing without it.', e);
     }
+  } else {
+    // Week 1: this season has no completed weeks yet, so fall back to last
+    // season's actuals as a stand-in rather than showing nothing at all.
+    // "Last week" here means each player's most recent game with recorded
+    // stats last season (scanned from the end), not a fixed week number --
+    // a player whose season ended early to injury still shows their last
+    // real game instead of a blank. The season average covers all of last
+    // season, same not-played-weeks exclusion as the current-season case.
+    // Cached with a long TTL since a finished season's stats never change.
+    const PRIOR_SEASON_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const NFL_REGULAR_SEASON_WEEKS = 18;
+    try {
+      const priorSeason = String(Number(season) - 1);
+      const weekNumbers = Array.from({ length: NFL_REGULAR_SEASON_WEEKS }, (_, i) => i + 1);
+      const weekStatsList = await Promise.all(
+        weekNumbers.map(w => SleeperAPI.getActualWeeklyStats(priorSeason, w, PRIOR_SEASON_TTL_MS))
+      );
+
+      const sums = {};
+      for (let i = weekStatsList.length - 1; i >= 0; i--) {
+        const weekPoints = Scoring.projectedPointsForLeague(weekStatsList[i], league.scoring_settings || {});
+        for (const [pid, pts] of Object.entries(weekPoints)) {
+          if (!(pid in lastWeekPoints)) lastWeekPoints[pid] = pts;
+          sums[pid] = (sums[pid] || 0) + pts;
+          seasonGamesPlayed[pid] = (seasonGamesPlayed[pid] || 0) + 1;
+        }
+      }
+      for (const pid of Object.keys(sums)) {
+        seasonAvgPoints[pid] = Math.round((sums[pid] / seasonGamesPlayed[pid]) * 100) / 100;
+      }
+      recentFormPriorSeason = true;
+    } catch (e) {
+      console.warn("Could not load last season's actuals as a Week 1 stand-in, continuing without it.", e);
+    }
   }
 
   const rosteredIds = [];
@@ -278,7 +312,7 @@ async function loadLeagueData(leagueId) {
 
   state.leagueData[leagueId] = {
     league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
-    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed,
+    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, recentFormPriorSeason,
     week, season, projSource, rosteredIds, trendingIds,
   };
 
@@ -305,9 +339,17 @@ function recentFormLine(playerId, data) {
   const avg = data.seasonAvgPoints ? data.seasonAvgPoints[playerId] : undefined;
   const games = data.seasonGamesPlayed ? data.seasonGamesPlayed[playerId] : 0;
   if (typeof last !== 'number' && typeof avg !== 'number') return '';
+  // Week 1 has no completed weeks of its own yet, so this data is last
+  // season's instead (see loadLeagueData) -- labeled distinctly so it's
+  // never mistaken for a current-season number.
+  const prior = data.recentFormPriorSeason;
+  const priorYear = prior ? Number(data.season) - 1 : null;
   const parts = [];
-  if (typeof last === 'number') parts.push(`Last wk ${last.toFixed(1)}`);
-  if (typeof avg === 'number') parts.push(`Season avg ${avg.toFixed(1)}${games ? ` (${games} gm${games === 1 ? '' : 's'})` : ''}`);
+  if (typeof last === 'number') parts.push(prior ? `${priorYear} last game ${last.toFixed(1)}` : `Last wk ${last.toFixed(1)}`);
+  if (typeof avg === 'number') {
+    const label = prior ? `${priorYear} avg` : 'Season avg';
+    parts.push(`${label} ${avg.toFixed(1)}${games ? ` (${games} gm${games === 1 ? '' : 's'})` : ''}`);
+  }
   return `<span class="recent-form">${parts.join(' · ')}</span>`;
 }
 
