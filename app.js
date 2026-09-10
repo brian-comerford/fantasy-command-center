@@ -469,15 +469,24 @@ function wireAskClaudeButton(card, cacheKey, questionFn) {
 
 /* ---------------- Tab switching ---------------- */
 
+// Shared by the real tab-strip buttons and the topbar's Info/logo buttons,
+// which reach a tab panel without being part of the tab-strip itself --
+// querySelector just finds nothing for a tabName with no matching
+// .tab-btn (Info), so no tab-strip button is left looking falsely active.
+function switchToTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  if (btn) btn.classList.add('active');
+  el(`${tabName}Tab`).classList.remove('hidden');
+}
+
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-      btn.classList.add('active');
-      el(`${btn.dataset.tab}Tab`).classList.remove('hidden');
-    });
+    btn.addEventListener('click', () => switchToTab(btn.dataset.tab));
   });
+  el('infoBtn').addEventListener('click', () => switchToTab('info'));
+  el('brandHome').addEventListener('click', () => switchToTab('lineup'));
 }
 
 function renderActiveTabContent() {

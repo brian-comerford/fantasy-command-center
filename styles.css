@@ -53,12 +53,19 @@ button, input, select {
 .brand {
   display: flex;
   align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
+
+.brand:hover .brand-logo { opacity: 0.85; }
 
 .brand-logo {
   height: 52px;
   width: auto;
   display: block;
+  transition: opacity 0.15s ease;
 }
 
 .league-tabs {
@@ -685,7 +692,13 @@ button, input, select {
     gap: 10px;
   }
   .brand { order: 1; }
-  .topbar .ghost-btn { order: 2; margin-left: auto; }
+  /* Both Info and Setup are .ghost-btn now -- margin-left:auto on both
+     would split the leftover space between them (each absorbs its own
+     share), spreading them apart instead of grouping them. Only the
+     first one in source order gets it, so the pair moves right together
+     as a unit with just the topbar's normal gap between them. */
+  .topbar .ghost-btn { order: 2; }
+  .topbar .ghost-btn:first-of-type { margin-left: auto; }
   .league-tabs {
     order: 3;
     flex-basis: 100%;
