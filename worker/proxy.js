@@ -12,7 +12,15 @@
  * deployed at all, just without ESPN blending or the "Ask Claude" button.
  * If you only want one of the two, just don't set up the other's
  * prerequisite (leave ANTHROPIC_API_KEY unset to disable /claude-assist).
+ *
+ * WORKER_VERSION below is bumped by hand on every edit to this file. Since
+ * editing/committing it locally does NOT change what's actually running on
+ * Cloudflare -- only pasting it into the dashboard and clicking Deploy does
+ * that -- visiting the bare Worker URL (GET /) shows which version is
+ * really deployed, so a stale-code guess doesn't have to be one.
  */
+
+const WORKER_VERSION = 1;
 
 export default {
   async fetch(request, env) {
@@ -20,6 +28,17 @@ export default {
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders() });
+    }
+
+    if (url.pathname === '/' || url.pathname === '') {
+      return new Response(JSON.stringify({
+        ok: true,
+        worker_version: WORKER_VERSION,
+        routes: ['/espn-proxy', '/claude-assist'],
+        claude_assist_configured: Boolean(env.ANTHROPIC_API_KEY),
+      }, null, 2), {
+        headers: { ...corsHeaders(), 'content-type': 'application/json' },
+      });
     }
 
     if (url.pathname === '/espn-proxy' || url.pathname === '/espn-proxy/') {

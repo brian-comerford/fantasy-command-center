@@ -138,8 +138,16 @@ above:
 If that secret isn't set, `/claude-assist` just returns an error and the
 button shows "Couldn't get an answer" rather than breaking anything else.
 Each click costs a few cents on your Anthropic account (model:
-`claude-opus-5`, capped at a short answer with up to 3 searches) — see
+`claude-opus-5`, capped at a short answer with up to 6 searches) — see
 `worker/proxy.js` if you'd rather point it at a cheaper model.
+
+**Checking what's actually deployed:** visiting the bare Worker URL in a
+browser (`GET /`) returns a small JSON status page — a version number
+(bumped on every edit to `worker/proxy.js`) and whether it sees your
+`ANTHROPIC_API_KEY` secret. Editing the file locally or even committing it
+to this repo doesn't change what Cloudflare is running — only pasting it
+into the dashboard and clicking Deploy does — so this is the fast way to
+confirm a redeploy actually took.
 
 ## Structure
 
