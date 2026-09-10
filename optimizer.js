@@ -76,6 +76,31 @@ const Optimizer = (() => {
     return { assignments, bench, totalPts };
   }
 
+  // Your actual current lineup, exactly as set in Sleeper -- no
+  // optimization, just currentStarters read off against rosterPositions
+  // (Sleeper orders both the same way, so index i of one is slot i of the
+  // other) plus whoever's left over as bench. Same { assignments, bench,
+  // totalPts } shape as optimalLineup so callers can render either one
+  // the same way; this is what the Lineup tab's own breakdown shows, with
+  // optimalLineup reserved for computing the swap suggestions above it.
+  function currentLineup(rosterPositions, currentStarters, rosterPlayerIds, playerMeta, valuation) {
+    const startSlots = rosterPositions.filter(s => s !== 'BN' && s !== 'IR' && s !== 'TAXI');
+    const assignments = startSlots.map((slot, idx) => {
+      const id = (currentStarters || [])[idx];
+      if (!id || id === '0' || !playerMeta[id]) return { slot, id: null, pts: 0 };
+      return { slot, id, pts: valuation[id] ?? 0 };
+    });
+
+    const startedSet = new Set(assignments.map(a => a.id).filter(Boolean));
+    const bench = (rosterPlayerIds || [])
+      .filter(id => id && playerMeta[id] && !startedSet.has(id))
+      .map(id => ({ id, pts: valuation[id] ?? 0, pos: playerMeta[id].pos }))
+      .sort((a, b) => b.pts - a.pts);
+
+    const totalPts = assignments.reduce((sum, a) => sum + a.pts, 0);
+    return { assignments, bench, totalPts };
+  }
+
   // Compares the optimal lineup against the roster's currently-set starters
   // and returns the specific swaps worth making. Comparing by slot index
   // would flag a false "swap" whenever two starters holding identical slots
@@ -200,5 +225,5 @@ const Optimizer = (() => {
     return { a, b, diff: Math.round((a.total - b.total) * 100) / 100 };
   }
 
-  return { optimalLineup, suggestedSwaps, waiverTargets, tradeSummary, eligiblePositions, injuryReplacements };
+  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, tradeSummary, eligiblePositions, injuryReplacements };
 })();

@@ -613,7 +613,14 @@ function renderLineupTab(data) {
     el('statusLine').textContent = "Couldn't find your roster in this league (owner_id mismatch).";
     return;
   }
-  const { optimal, swaps } = Optimizer.suggestedSwaps(
+  const { swaps } = Optimizer.suggestedSwaps(
+    league.roster_positions,
+    myRoster.starters || [],
+    myRoster.players || [],
+    playerMeta,
+    valuation
+  );
+  const current = Optimizer.currentLineup(
     league.roster_positions,
     myRoster.starters || [],
     myRoster.players || [],
@@ -623,7 +630,7 @@ function renderLineupTab(data) {
 
   let liveTotal = 0;
   let anyActual = false;
-  optimal.assignments.forEach(a => {
+  current.assignments.forEach(a => {
     if (!a.id) return;
     const live = livePlayerPoints(a.id, a.pts, data);
     liveTotal += live.pts;
@@ -671,7 +678,7 @@ function renderLineupTab(data) {
 
   const grid = el('lineupGrid');
   grid.innerHTML = '';
-  optimal.assignments.forEach(a => {
+  current.assignments.forEach(a => {
     const meta = a.id ? playerMeta[a.id] : null;
     const live = a.id ? livePlayerPoints(a.id, a.pts, data) : null;
     const row = document.createElement('div');
@@ -687,12 +694,12 @@ function renderLineupTab(data) {
     grid.appendChild(row);
   });
 
-  if (optimal.bench.length) {
+  if (current.bench.length) {
     const heading = document.createElement('div');
     heading.className = 'bench-heading';
     heading.textContent = 'Bench';
     grid.appendChild(heading);
-    optimal.bench.forEach(p => {
+    current.bench.forEach(p => {
       const meta = playerMeta[p.id];
       const live = livePlayerPoints(p.id, p.pts, data);
       const row = document.createElement('div');
