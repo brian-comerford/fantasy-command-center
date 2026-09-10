@@ -251,9 +251,10 @@ above:
 
 If that secret isn't set, `/claude-assist` just returns an error and the
 button shows "Couldn't get an answer" rather than breaking anything else.
-Each click costs a few cents on your Anthropic account (model:
-`claude-opus-5`, capped at a short answer with up to 6 searches) — see
-`worker/proxy.js` if you'd rather point it at a cheaper model.
+Each click costs roughly a cent or two on your Anthropic account (model:
+`claude-sonnet-5`, capped at a short answer with up to 6 searches) — see
+`worker/proxy.js` if you'd rather trade speed/cost for more nuance
+(`claude-opus-5`) or go faster/cheaper still (`claude-haiku-4-5-20251001`).
 
 **Checking what's actually deployed:** visiting the bare Worker URL in a
 browser (`GET /`) returns a small JSON status page — a version number

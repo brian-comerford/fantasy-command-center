@@ -20,7 +20,7 @@
  * really deployed, so a stale-code guess doesn't have to be one.
  */
 
-const WORKER_VERSION = 3;
+const WORKER_VERSION = 4;
 
 export default {
   async fetch(request, env) {
@@ -106,12 +106,14 @@ async function handleEspnProxy(url) {
 // results in automatically, so this is a single request/response, no
 // client-side tool loop to implement.
 //
-// Model: claude-opus-5. Each click costs real money on your Anthropic
-// account -- roughly a few cents per question at these settings (short
-// question in, ~1-3 searches, a short answer capped at max_tokens below).
-// If you'd rather trade some quality for lower cost, changing "model" to
-// "claude-sonnet-5" cuts the price roughly in half; that's your call to
-// make, not something to guess at here.
+// Model: claude-sonnet-5 -- noticeably faster than Opus 5 for this kind of
+// quick lookup-and-summarize task (short question in, a few searches, a
+// short answer out), at roughly half the cost too. If you want it faster
+// still and can live with less nuanced takes, "claude-haiku-4-5-20251001"
+// is faster and cheaper again; if you want Opus-level nuance back and can
+// live with slower/pricier, "claude-opus-5" is the other direction. Each
+// click costs real money on your Anthropic account either way -- at
+// Sonnet 5 it's roughly a cent or two per question at these settings.
 async function handleClaudeAssist(request, env) {
   if (request.method !== 'POST') {
     return new Response('Use POST', { status: 405, headers: corsHeaders() });
@@ -143,7 +145,7 @@ async function handleClaudeAssist(request, env) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-opus-5',
+      model: 'claude-sonnet-5',
       max_tokens: 1024,
       output_config: { effort: 'low' }, // quick interactive lookup, not deep reasoning
       system: 'Answer in plain prose only: flowing sentences, no markdown ' +
