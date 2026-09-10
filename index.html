@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Command Center — Fantasy Roster Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">CC</span>
+    <span class="brand-name">Command Center</span>
+  </div>
+  <nav id="leagueTabs" class="league-tabs"></nav>
+  <div class="week-readout" id="weekReadout"></div>
+  <button id="settingsBtn" class="ghost-btn" title="Settings">Setup</button>
+</header>
+
+<main id="app">
+
+  <!-- Setup panel: shown until at least one league is configured -->
+  <section id="setupPanel" class="setup-panel">
+    <div class="setup-card">
+      <h1>Set up your desk</h1>
+      <p class="muted">Enter your Sleeper username and pull in your leagues for the current season. Nothing leaves your browser — this app talks directly to Sleeper's public API.</p>
+
+      <label class="field">
+        <span>Sleeper username</span>
+        <input type="text" id="usernameInput" placeholder="e.g. bmac_915">
+      </label>
+      <button id="findLeaguesBtn" class="primary-btn">Find my leagues</button>
+
+      <div id="leagueChecklist" class="league-checklist"></div>
+
+      <p class="muted small">Prefer to enter league IDs directly? <button id="manualEntryToggle" class="link-btn">Add manually</button></p>
+      <div id="manualEntry" class="manual-entry hidden">
+        <label class="field">
+          <span>League ID</span>
+          <input type="text" id="manualLeagueId" placeholder="e.g. 1129382048452345088">
+        </label>
+        <button id="addManualLeagueBtn" class="secondary-btn">Add league</button>
+      </div>
+
+      <div id="selectedLeagues" class="selected-leagues"></div>
+      <button id="saveSetupBtn" class="primary-btn hidden">Load Command Center</button>
+    </div>
+  </section>
+
+  <!-- Main dashboard: shown once leagues are configured -->
+  <section id="dashboard" class="dashboard hidden">
+
+    <nav class="tab-strip">
+      <button class="tab-btn active" data-tab="lineup">Lineup</button>
+      <button class="tab-btn" data-tab="waivers">Waivers</button>
+      <button class="tab-btn" data-tab="trade">Trade</button>
+    </nav>
+
+    <div id="statusLine" class="status-line"></div>
+
+    <section id="lineupTab" class="tab-panel">
+      <div class="hero-total">
+        <span class="hero-label">Projected starting total</span>
+        <span class="hero-number" id="heroTotal">--</span>
+      </div>
+      <div id="swapsList" class="swaps-list"></div>
+      <h2 class="section-heading">Full lineup breakdown</h2>
+      <div id="lineupGrid" class="lineup-grid"></div>
+    </section>
+
+    <section id="waiversTab" class="tab-panel hidden">
+      <h2 class="section-heading">Pickups that beat your roster</h2>
+      <p class="muted">Free agents projecting higher than your weakest player at the same position, sorted by the size of the edge.</p>
+      <div id="waiverList" class="waiver-list"></div>
+    </section>
+
+    <section id="tradeTab" class="tab-panel hidden">
+      <h2 class="section-heading">Trade analyzer</h2>
+      <p class="muted">Pick players from your roster and the other team's roster to compare projected value.</p>
+      <div class="trade-builder">
+        <div class="trade-side">
+          <h3>Your side</h3>
+          <div id="tradeSideAPool" class="player-pool"></div>
+          <div class="trade-selected" id="tradeSideASelected"></div>
+        </div>
+        <div class="trade-vs">VS</div>
+        <div class="trade-side">
+          <h3>Their side</h3>
+          <label class="field small">
+            <span>Trade with</span>
+            <select id="tradeOpponentSelect"></select>
+          </label>
+          <div id="tradeSideBPool" class="player-pool"></div>
+          <div class="trade-selected" id="tradeSideBSelected"></div>
+        </div>
+      </div>
+      <div id="tradeResult" class="trade-result"></div>
+    </section>
+
+  </section>
+
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <span id="loadingText">Loading…</span>
+    </div>
+  </div>
+
+</main>
+
+<script src="js/sleeper-api.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/optimizer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
