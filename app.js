@@ -297,27 +297,65 @@ function askClaudeMarkup() {
     <div class="ask-claude-wrap">
       <button type="button" class="ask-claude-btn">Ask Claude</button>
       <div class="ask-claude-result hidden"></div>
+      <div class="ask-claude-meta hidden"></div>
     </div>
   `;
+}
+
+function relativeTime(ts) {
+  const mins = Math.round((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
 // Wires the click handler for a card's "Ask Claude" button (a no-op if the
 // card has none, i.e. no proxy configured). questionFn is called lazily on
 // click, not up front, since building it can reference data not needed
 // unless the button is actually used.
-function wireAskClaudeButton(card, questionFn) {
+//
+// First click shows a cached answer for this exact suggestion instantly
+// and for free if one exists (button starts labeled accordingly); only a
+// genuinely new question, or an explicit "Ask again", spends tokens.
+function wireAskClaudeButton(card, cacheKey, questionFn) {
   const btn = card.querySelector('.ask-claude-btn');
   if (!btn) return;
   const resultEl = card.querySelector('.ask-claude-result');
+  const metaEl = card.querySelector('.ask-claude-meta');
+
+  const cached = ClaudeAssist.getCached(cacheKey);
+  if (cached) btn.textContent = "Show Claude's answer";
+
   btn.addEventListener('click', async () => {
+    const alreadyShown = btn.dataset.shown === '1';
+    if (!alreadyShown) {
+      const existing = ClaudeAssist.getCached(cacheKey);
+      if (existing) {
+        resultEl.classList.remove('hidden');
+        resultEl.textContent = existing.text;
+        metaEl.classList.remove('hidden');
+        metaEl.textContent = `Cached answer from ${relativeTime(existing.ts)} -- no new query sent. Click "Ask again" for a fresh (billed) one.`;
+        btn.textContent = 'Ask again (new query)';
+        btn.dataset.shown = '1';
+        return;
+      }
+    }
+
     btn.disabled = true;
     btn.textContent = 'Researching…';
     resultEl.classList.remove('hidden');
     resultEl.textContent = '';
+    metaEl.classList.add('hidden');
+    metaEl.textContent = '';
     try {
       const text = await ClaudeAssist.ask(state.workerProxyUrl, questionFn());
+      ClaudeAssist.setCached(cacheKey, text);
       resultEl.textContent = text;
-      btn.textContent = 'Ask again';
+      btn.textContent = 'Ask again (new query)';
+      btn.dataset.shown = '1';
     } catch (e) {
       resultEl.textContent = `Couldn't get an answer: ${e.message}`;
       btn.textContent = 'Try again';
@@ -394,7 +432,11 @@ function renderLineupTab(data) {
         <span class="swap-gain">+${s.gain.toFixed(1)}</span>
         ${askClaudeMarkup()}
       `;
-      wireAskClaudeButton(card, () => ClaudeAssist.buildSwapQuestion({
+      const swapCacheKey = ClaudeAssist.cacheKeyFor({
+        type: 'swap', leagueId: data.league.league_id, season: data.season, week: data.week,
+        aId: s.benchPlayer.id, bId: s.starterPlayer ? s.starterPlayer.id : null,
+      });
+      wireAskClaudeButton(card, swapCacheKey, () => ClaudeAssist.buildSwapQuestion({
         league: data.league.name, week: data.week, season: data.season,
         incoming: s.benchPlayer, outgoing: s.starterPlayer, slot: s.slot,
       }));
@@ -471,7 +513,11 @@ function renderWaiversTab(data) {
       <span class="waiver-edge">+${s.edge.toFixed(1)}</span>
       ${askClaudeMarkup()}
     `;
-    wireAskClaudeButton(card, () => ClaudeAssist.buildWaiverQuestion({
+    const waiverCacheKey = ClaudeAssist.cacheKeyFor({
+      type: 'waiver', leagueId: data.league.league_id, season: data.season, week: data.week,
+      aId: s.add.id, bId: s.considerDropping.id,
+    });
+    wireAskClaudeButton(card, waiverCacheKey, () => ClaudeAssist.buildWaiverQuestion({
       league: data.league.name, week: data.week, season: data.season,
       add: s.add, drop: s.considerDropping,
     }));

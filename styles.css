@@ -447,6 +447,12 @@ button, input, select {
   white-space: pre-wrap;
 }
 
+.ask-claude-meta {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--chalk-dim);
+}
+
 .waiver-edge {
   margin-left: auto;
   color: var(--turf-bright);

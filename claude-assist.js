@@ -8,9 +8,55 @@
  * has configured a Worker proxy URL and clicks "Ask Claude" on a specific
  * card. No automatic/background calls -- each click is a real, billed
  * request on the user's own Anthropic account.
+ *
+ * Answers are cached in localStorage per (league, week, player pair) so
+ * coming back to a suggestion you already asked about shows the same
+ * answer for free instead of spending tokens again. Entries older than
+ * CACHE_TTL_MS are pruned on write -- well past the week or two a given
+ * suggestion stays relevant, so it's just housekeeping, not a real
+ * expiration a user would notice.
  */
 
 const ClaudeAssist = (() => {
+  const CACHE_KEY = 'fcc_claude_answer_cache_v1';
+  const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+  function cacheKeyFor({ type, leagueId, season, week, aId, bId }) {
+    return [type, leagueId, season, week, aId, bId || ''].join('|');
+  }
+
+  function loadCacheStore() {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function pruneAndSave(store) {
+    const cutoff = Date.now() - CACHE_TTL_MS;
+    for (const [key, entry] of Object.entries(store)) {
+      if (!entry || entry.ts < cutoff) delete store[key];
+    }
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(store));
+    } catch (e) {
+      console.warn('Claude answer cache too large for localStorage, continuing without saving this entry.', e);
+    }
+  }
+
+  // Returns { text, ts } or null.
+  function getCached(key) {
+    return loadCacheStore()[key] || null;
+  }
+
+  function setCached(key, text) {
+    const store = loadCacheStore();
+    store[key] = { text, ts: Date.now() };
+    pruneAndSave(store);
+  }
+
   async function ask(proxyBaseUrl, question) {
     if (!proxyBaseUrl) throw new Error('No Worker proxy URL configured.');
     const res = await fetch(`${proxyBaseUrl.replace(/\/$/, '')}/claude-assist`, {
@@ -48,5 +94,5 @@ const ClaudeAssist = (() => {
       `short, concrete take (3-5 sentences) on whether this pickup looks right this week.`;
   }
 
-  return { ask, buildSwapQuestion, buildWaiverQuestion };
+  return { ask, buildSwapQuestion, buildWaiverQuestion, cacheKeyFor, getCached, setCached };
 })();

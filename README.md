@@ -120,7 +120,10 @@ an **Ask Claude** button. Clicking it sends Claude (with live web search
 turned on) a question about that specific matchup — current injury status,
 snap counts, matchup difficulty, beat-reporter buzz — and shows the answer
 right on the card. Nothing runs automatically; it's a real, billed request
-only when you click.
+only when you click. Answers are cached in your browser per suggestion
+(same league, week, and player pair) -- coming back and clicking again
+shows the same answer for free instead of spending tokens again, with an
+"Ask again" option if you want a fresh, newly-researched one.
 
 This needs its own one-time setup, separate from the Worker deployment
 above:
