@@ -147,6 +147,48 @@ const Optimizer = (() => {
     return suggestions.slice(0, limit);
   }
 
+  // For one specific rostered player (typically one flagged with an injury
+  // status), finds the best replacement available from your own bench and
+  // separately from the waiver wire. Either can come back null if there's
+  // genuinely no better option.
+  //
+  // The bench replacement isn't just "the next-best player at the same
+  // position" -- it re-runs the full lineup optimizer with this player
+  // removed from the pool and reads off whoever the optimizer now assigns
+  // to the exact slot they'd vacate, so it correctly accounts for ripple
+  // effects (e.g. removing a WR1 might shift a FLEX-eligible RB into that
+  // WR slot, with a bench RB filling the FLEX instead, rather than just
+  // handing the WR slot to your next-best bench WR).
+  function injuryReplacements(playerId, rosterPositions, currentStarters, rosterPlayerIds, allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds) {
+    let benchReplacement = null;
+    const slotIndex = (currentStarters || []).indexOf(playerId);
+    if (slotIndex !== -1) {
+      const startSlots = rosterPositions.filter(s => s !== 'BN' && s !== 'IR' && s !== 'TAXI');
+      const slot = startSlots[slotIndex];
+      const remainingPlayers = (rosterPlayerIds || []).filter(id => id !== playerId);
+      const hypothetical = optimalLineup(rosterPositions, remainingPlayers, allPlayerMeta, valuation);
+      const assignment = hypothetical.assignments[slotIndex];
+      if (assignment && assignment.id) {
+        benchReplacement = { id: assignment.id, ...allPlayerMeta[assignment.id], pts: assignment.pts, slot };
+      }
+    }
+
+    let waiverReplacement = null;
+    const meta = allPlayerMeta[playerId];
+    if (meta) {
+      const myPts = valuation[playerId] ?? 0;
+      const rosteredSet = new Set(rosteredIdsLeagueWide);
+      const candidate = Object.entries(allPlayerMeta)
+        .filter(([id, m]) => !rosteredSet.has(id) && m.active && m.team !== 'FA' && m.pos === meta.pos)
+        .map(([id, m]) => ({ id, ...m, pts: valuation[id] ?? 0, trending: trendingAddIds.has(id) }))
+        .filter(c => c.pts > myPts + 0.01)
+        .sort((a, b) => b.pts - a.pts)[0];
+      if (candidate) waiverReplacement = candidate;
+    }
+
+    return { benchReplacement, waiverReplacement };
+  }
+
   function tradeSummary(sideAIds, sideBIds, playerMeta, valuation) {
     const summarize = (ids) => {
       const players = ids.map(id => ({ id, ...playerMeta[id], pts: valuation[id] ?? 0 }));
@@ -158,5 +200,5 @@ const Optimizer = (() => {
     return { a, b, diff: Math.round((a.total - b.total) * 100) / 100 };
   }
 
-  return { optimalLineup, suggestedSwaps, waiverTargets, tradeSummary, eligiblePositions };
+  return { optimalLineup, suggestedSwaps, waiverTargets, tradeSummary, eligiblePositions, injuryReplacements };
 })();

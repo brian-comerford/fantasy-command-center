@@ -4,7 +4,10 @@ A static, client-side web app (no server, no build step) that pulls live
 data from Sleeper's public API for all three of your leagues and helps you:
 
 - **Lineup** — see your mathematically optimal starting lineup for the
-  current week, and the specific bench-for-starter swaps worth making.
+  current week, the specific bench-for-starter swaps worth making, and an
+  **Injury watch** panel flagging any rostered player carrying a Sleeper
+  injury tag, each with the best replacement available from your bench and
+  the waiver wire.
 - **Waivers** — free agents who project higher than your weakest player
   at the same position, with "trending add" flags.
 - **Trade** — pick players from your roster and an opponent's, and see the
@@ -90,6 +93,28 @@ account — still no third-party analytics.)
   tab becoming visible again or being restored from the browser's
   back-forward cache, and refetches if it's been at least a minute since
   the last load, so it doesn't refetch on every brief glance.
+
+## Injury watch
+
+The Lineup tab flags every rostered player carrying a Sleeper injury/status
+tag (Questionable, Doubtful, Out, IR, Sus, ...) -- starters first -- with
+the body part if Sleeper has it, and the single best replacement available
+both from your own bench and from the waiver wire. The bench suggestion
+isn't just "the next guy at the same position": it re-runs the full lineup
+optimizer with that player pulled out of the pool and reads off whoever
+actually gets assigned their vacated slot, so it accounts for ripple
+effects across your other flex slots rather than a naive same-position
+swap. If neither your bench nor the waiver wire has anything clearly
+better, it says so rather than guessing.
+
+This is deliberately separate from the swap suggestions above it: a
+"Questionable" tag posted early in the week often hasn't dragged a
+player's own projection down yet, so a point-based swap suggestion might
+not fire even though this is exactly the situation you'd want a backup
+plan for. Each flagged player also gets the same optional "Ask Claude"
+research button as swap/waiver suggestions, digging into practice
+reports and beat-reporter updates that Sleeper's bare status tag doesn't
+carry.
 
 ## A third opinion: CBS's consensus rank
 

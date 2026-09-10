@@ -58,7 +58,10 @@ const SleeperAPI = (() => {
   // in localStorage for 20 hours (Sleeper recommends calling this endpoint
   // sparingly -- at most once a day per their docs).
   async function getPlayersTrimmed() {
-    const cacheKey = 'fcc_players_cache_v1';
+    // v2 adds injuryBodyPart/injuryNotes -- bumped so anyone with a v1
+    // cache (missing those fields) refetches immediately instead of
+    // silently showing incomplete injury detail for up to 20 hours.
+    const cacheKey = 'fcc_players_cache_v2';
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -77,6 +80,8 @@ const SleeperAPI = (() => {
         pos: p.fantasy_positions && p.fantasy_positions[0] ? p.fantasy_positions[0] : (p.position || 'UNK'),
         team: p.team || 'FA',
         status: p.injury_status || null,
+        injuryBodyPart: p.injury_body_part || null,
+        injuryNotes: p.injury_notes || null,
         active: p.active !== false,
       };
     }

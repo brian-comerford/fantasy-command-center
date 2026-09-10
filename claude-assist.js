@@ -94,5 +94,27 @@ const ClaudeAssist = (() => {
       `short, concrete take (3-5 sentences) on whether this pickup looks right this week.`;
   }
 
-  return { ask, buildSwapQuestion, buildWaiverQuestion, cacheKeyFor, getCached, setCached };
+  function buildInjuryQuestion({ league, week, season, player, injuryLabel, benchReplacement, waiverReplacement }) {
+    const replacementParts = [];
+    if (benchReplacement) replacementParts.push(`benching them for ${benchReplacement.name} (${benchReplacement.pos} ${benchReplacement.team}) from my own roster`);
+    if (waiverReplacement) replacementParts.push(`picking up free agent ${waiverReplacement.name} (${waiverReplacement.pos} ${waiverReplacement.team})`);
+    const replacementPart = replacementParts.length
+      ? ` If they can't go, my options are ${replacementParts.join(' or ')} -- ` +
+        `say which one you'd take.`
+      : ` I don't have an obvious replacement for them on my roster or the waiver wire, ` +
+        `so also flag if that's a real problem given how unclear their status is.`;
+    const rosterPart = player.isStarter
+      ? `My starting ${player.pos} ${player.name} (${player.team})`
+      : `My benched ${player.pos} ${player.name} (${player.team})`;
+    const decisionPart = player.isStarter
+      ? 'whether I should trust them to start'
+      : 'whether they\'re worth starting over a healthy option, or worth dropping';
+    return `I play fantasy football in a league called "${league}" (${season} season, ` +
+      `Week ${week}). ${rosterPart} is listed as ${injuryLabel}. Search for the latest ` +
+      `on their actual status -- practice participation this week, beat-reporter or ` +
+      `team-source updates, and how likely they are to play meaningful snaps if active -- ` +
+      `and give me a short, concrete take (3-5 sentences) on ${decisionPart}.${replacementPart}`;
+  }
+
+  return { ask, buildSwapQuestion, buildWaiverQuestion, buildInjuryQuestion, cacheKeyFor, getCached, setCached };
 })();

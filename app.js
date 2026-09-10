@@ -512,6 +512,8 @@ function renderLineupTab(data) {
 
   el('heroTotal').textContent = optimal.totalPts.toFixed(1);
 
+  renderInjuryWatch(data);
+
   const swapsList = el('swapsList');
   swapsList.innerHTML = '';
   if (!swaps.length) {
@@ -585,6 +587,82 @@ function renderLineupTab(data) {
       grid.appendChild(row);
     });
   }
+}
+
+// Every rostered player carrying a Sleeper injury/status tag (Questionable,
+// Doubtful, Out, IR, Sus, ...), starters first, each with the single best
+// replacement available from the bench and separately from the waiver wire
+// (see Optimizer.injuryReplacements for how those are found). This is
+// deliberately independent of the swap suggestions above it: a
+// "Questionable" tag posted early in the week often hasn't dragged a
+// player's own projection down yet, so a point-based swap suggestion might
+// not fire even though this is exactly the situation someone would want a
+// backup plan for.
+function renderInjuryWatch(data) {
+  const { league, myRoster, playerMeta, valuation, rosteredIds, trendingIds } = data;
+  const container = el('injuryWatch');
+  container.innerHTML = '';
+  if (!myRoster) return;
+
+  const starters = new Set(myRoster.starters || []);
+  const flagged = (myRoster.players || [])
+    .filter(id => playerMeta[id] && playerMeta[id].status)
+    .map(id => ({ id, ...playerMeta[id], pts: valuation[id] ?? 0, isStarter: starters.has(id) }))
+    .sort((a, b) => Number(b.isStarter) - Number(a.isStarter) || b.pts - a.pts);
+
+  if (!flagged.length) {
+    container.innerHTML = '<div class="no-swaps">No injury concerns flagged on your roster this week.</div>';
+    return;
+  }
+
+  const heading = document.createElement('h2');
+  heading.className = 'section-heading';
+  heading.textContent = 'Injury watch';
+  container.appendChild(heading);
+
+  const list = document.createElement('div');
+  list.className = 'injury-watch-list';
+
+  flagged.forEach(p => {
+    const { benchReplacement, waiverReplacement } = Optimizer.injuryReplacements(
+      p.id, league.roster_positions, myRoster.starters || [], myRoster.players || [],
+      playerMeta, valuation, rosteredIds, trendingIds
+    );
+
+    const bodyPart = p.injuryBodyPart ? ` (${p.injuryBodyPart})` : '';
+    const options = [];
+    if (benchReplacement) {
+      options.push(`<div class="injury-replacement-option"><span class="label">Bench option</span> ${benchReplacement.name} · ${benchReplacement.pos} ${benchReplacement.team} · ${benchReplacement.pts.toFixed(1)} pts</div>`);
+    }
+    if (waiverReplacement) {
+      options.push(`<div class="injury-replacement-option"><span class="label">Waiver option</span> ${waiverReplacement.name} ${waiverReplacement.trending ? '<span class="trending-badge">Trending</span>' : ''} · ${waiverReplacement.pos} ${waiverReplacement.team} · ${waiverReplacement.pts.toFixed(1)} pts</div>`);
+    }
+    if (!options.length) {
+      options.push('<div class="injury-replacement-option muted">No clearly better replacement found on your bench or the waiver wire.</div>');
+    }
+
+    const card = document.createElement('div');
+    card.className = 'injury-card';
+    card.innerHTML = `
+      <div class="player-chip">
+        <span class="name">${p.name} <span class="injury-status-badge">${p.status}${bodyPart}</span></span>
+        <span class="meta">${p.pos} ${p.team} · ${p.isStarter ? 'Starting' : 'Bench'} · ${p.pts.toFixed(1)} pts</span>
+      </div>
+      <div class="injury-replacements">${options.join('')}</div>
+      ${askClaudeMarkup()}
+    `;
+    const cacheKey = ClaudeAssist.cacheKeyFor({
+      type: 'injury', leagueId: league.league_id, season: data.season, week: data.week,
+      aId: p.id, bId: null,
+    });
+    wireAskClaudeButton(card, cacheKey, () => ClaudeAssist.buildInjuryQuestion({
+      league: league.name, week: data.week, season: data.season,
+      player: p, injuryLabel: p.status, benchReplacement, waiverReplacement,
+    }));
+    list.appendChild(card);
+  });
+
+  container.appendChild(list);
 }
 
 /* ---------------- Waivers tab ---------------- */
