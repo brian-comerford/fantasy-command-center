@@ -1,5 +1,5 @@
-/* Two decision-making signals built entirely from data the app already
- * pulls (each played week's actual stats, see SleeperAPI.getActualWeeklyStatsRaw)
+/* Decision-making signals built entirely from data the app already pulls
+ * (weekly projections/actual-stats entries, see SleeperAPI's *Raw fetchers)
  * -- no new API surface, just a deeper look at the same numbers:
  *
  * 1. DVP ("defense vs. position") -- how many fantasy points each NFL
@@ -12,11 +12,18 @@
  *    as a leading indicator: a role that's expanding or shrinking often
  *    predicts next week's score better than last week's box score alone.
  *
- * Both are season-long-accumulating: DVP needs at least one fully-played
- * week league-wide, and a usage trend needs at least two played games for
- * that specific player, so neither has anything to show in the first
- * week or two of a season -- that's real "not enough data yet", not a
- * bug, and it stops applying as the season goes on.
+ * 3. Bye weeks -- which week each NFL team sits out, read off a whole
+ *    season's projection entries (see computeByeWeeks) rather than a
+ *    dedicated schedule endpoint Sleeper doesn't publicly expose.
+ *
+ * 4. This week's per-team game date (buildTeamDateMap) -- backs the
+ *    lineup-lock reminder in app.js.
+ *
+ * DVP and usage trend are season-long-accumulating: DVP needs at least one
+ * fully-played week league-wide, and a usage trend needs at least two
+ * played games for that specific player, so neither has anything to show
+ * in the first week or two of a season -- that's real "not enough data
+ * yet", not a bug, and it stops applying as the season goes on.
  */
 
 const Trends = (() => {
@@ -109,6 +116,53 @@ const Trends = (() => {
     return map;
   }
 
+  // { [team]: 'YYYY-MM-DD' } for one week's raw entries -- same idea as
+  // buildTeamOpponentMap, just reading the game date instead of the
+  // opponent. Used for the lineup-lock reminder (see loadAndRenderLockReminder
+  // in app.js), which needs a real date to count down to, not just who's
+  // playing.
+  function buildTeamDateMap(entries) {
+    const map = {};
+    (entries || []).forEach(entry => {
+      if (entry.team && entry.date && !map[entry.team]) map[entry.team] = entry.date;
+    });
+    return map;
+  }
+
+  // entriesByWeek: { [week]: rawEntries[] } for every week 1-18 of a
+  // season (see SleeperAPI.getWeeklyProjectionsRaw). Returns { [team]:
+  // byeWeekNumber }.
+  //
+  // A bye week's projection entries still exist for that team's players --
+  // Sleeper doesn't omit them -- but carry an empty opponent (and no real
+  // stats), unlike every other week where they have a real opponent. So a
+  // team's bye is simply the one week, among all the weeks they show up
+  // with a `team` at all, where they never show up with a real `opponent`.
+  function computeByeWeeks(entriesByWeek) {
+    const allTeams = new Set();
+    const playingWeeksByTeam = {};
+    Object.entries(entriesByWeek).forEach(([weekStr, entries]) => {
+      const week = Number(weekStr);
+      (entries || []).forEach(entry => {
+        if (!entry.team) return;
+        allTeams.add(entry.team);
+        if (entry.opponent) {
+          if (!playingWeeksByTeam[entry.team]) playingWeeksByTeam[entry.team] = new Set();
+          playingWeeksByTeam[entry.team].add(week);
+        }
+      });
+    });
+
+    const weeks = Object.keys(entriesByWeek).map(Number);
+    const byeWeeks = {};
+    allTeams.forEach(team => {
+      const playing = playingWeeksByTeam[team] || new Set();
+      const bye = weeks.find(w => !playing.has(w));
+      if (bye) byeWeeks[team] = bye;
+    });
+    return byeWeeks;
+  }
+
   // playerWeeklyEntries: this one player's raw entries across played weeks
   // (oldest first), already filtered by the caller to games they actually
   // took an offensive snap in. Returns null if there aren't at least two
@@ -163,5 +217,5 @@ const Trends = (() => {
     };
   }
 
-  return { ordinal, computeDvp, buildTeamOpponentMap, computeUsageTrend };
+  return { ordinal, computeDvp, buildTeamOpponentMap, buildTeamDateMap, computeByeWeeks, computeUsageTrend };
 })();

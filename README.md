@@ -13,7 +13,11 @@ data from Sleeper's public API for all three of your leagues and helps you:
   short — and the total at the top updates to match. Your current
   matchup opponent's total and starting lineup get the same treatment
   right alongside yours, so you can see how the week's actually shaking
-  out on both sides, not just yours.
+  out on both sides, not just yours. A **lineup lock heads-up** flags it
+  when one of your starters kicks off earlier than the rest of the week
+  (almost always Thursday night), and an **upcoming bye weeks** list at
+  the bottom keeps every rostered player's bye in view before it catches
+  you short-handed.
 - **Waivers** — free agents who project higher than your weakest player
   at the same position, with "trending add" flags.
 - **Trade** — scans every other roster in your league for a bench player
@@ -147,6 +151,32 @@ score and coloring green/red the moment their game ends, and a total that
 relabels itself from projected to live the same way yours does. It's
 hidden entirely if there's no opponent this week (a bye in an odd-sized
 league).
+
+## Lineup lock and bye weeks
+
+Two smaller, always-on pieces on the Lineup tab, both about not getting
+caught out by the calendar rather than about who to start:
+
+**Lineup lock heads-up** looks at your current starters who haven't
+played yet this week and flags whoever's kicking off earliest — almost
+always a Thursday-nighter buried in an otherwise Sunday-heavy lineup,
+easy to forget about while you're still finalizing everyone else. It
+only considers starters still to play, so once that Thursday game is
+underway the reminder naturally moves on to the next-earliest kickoff
+among what's left, and disappears once your whole lineup has played.
+
+**Upcoming bye weeks** lists every rostered player — starters and bench
+alike — by which week their NFL team sits out, for the current week and
+beyond, so a bye doesn't surprise you the week it hits; you've got a
+heads-up to work the waiver wire or a trade first instead. Sleeper
+doesn't publish a bye-week schedule directly, so this is worked out from
+a full season's worth of weekly projections instead: a bye week's
+entries for that team still exist, just with no opponent and no real
+projection, which is enough to tell it apart from every other week.
+That's an 18-week fetch the first time it's needed each session, cached
+for two weeks after that (the NFL doesn't reshuffle its own schedule
+mid-season) and shared across all three of your leagues, so it only
+happens once, not once per league.
 
 ## Injury watch
 

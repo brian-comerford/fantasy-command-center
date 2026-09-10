@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=14" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=15" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -81,6 +81,7 @@
           <span class="hero-number" id="oppHeroTotal">--</span>
         </div>
       </div>
+      <div id="lockReminder" class="lock-reminder hidden"></div>
       <div id="injuryWatch" class="injury-watch"></div>
       <h2 class="section-heading hidden" id="swapsHeading">Suggested swaps</h2>
       <div id="swapsList" class="swaps-list"></div>
@@ -88,6 +89,8 @@
       <div id="lineupGrid" class="lineup-grid"></div>
       <h2 class="section-heading hidden" id="opponentHeading">This week's opponent</h2>
       <div id="opponentGrid" class="lineup-grid"></div>
+      <h2 class="section-heading hidden" id="byePlannerHeading">Upcoming bye weeks</h2>
+      <div id="byePlannerList" class="bye-planner-list"></div>
     </section>
 
     <section id="waiversTab" class="tab-panel hidden">
@@ -201,6 +204,16 @@
         <p class="info-example"><span class="injury-status-badge">Questionable (Knee)</span></p>
         <p>The status and body part come straight from Sleeper's own injury report. "Bench option" and "Waiver option" are this app's suggested replacement if that player can't go -- the bench one accounts for how removing them reshuffles your other flex slots, not just a naive same-position swap; the waiver one is the best free agent at their position. Either can be missing if there's genuinely nothing better available.</p>
       </div>
+
+      <div class="info-section">
+        <h3>Lineup lock heads-up</h3>
+        <p>Shown on the Lineup tab whenever one of your current starters has an earlier kickoff than the rest of the week's games -- almost always a Thursday-nighter -- so it doesn't sneak past you while you're still planning around Sunday. Only looks at starters who haven't played yet, so it naturally moves on to the next-earliest kickoff once that one's underway, and disappears entirely once everyone in your lineup has played.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>Upcoming bye weeks</h3>
+        <p>Every rostered player's bye week, grouped and sorted, for the current week and beyond -- so a bye doesn't surprise you the week of, and you've got a heads-up to work the waiver wire or a trade beforehand instead of scrambling. A week highlighted in gold is this week or next.</p>
+      </div>
     </section>
 
   </section>
@@ -221,15 +234,15 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=14"></script>
-<script src="player-id-crosswalk.js?v=14"></script>
-<script src="espn-api.js?v=14"></script>
-<script src="cbs-api.js?v=14"></script>
-<script src="claude-assist.js?v=14"></script>
-<script src="scoring.js?v=14"></script>
-<script src="optimizer.js?v=14"></script>
-<script src="stats.js?v=14"></script>
-<script src="trends.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="sleeper-api.js?v=15"></script>
+<script src="player-id-crosswalk.js?v=15"></script>
+<script src="espn-api.js?v=15"></script>
+<script src="cbs-api.js?v=15"></script>
+<script src="claude-assist.js?v=15"></script>
+<script src="scoring.js?v=15"></script>
+<script src="optimizer.js?v=15"></script>
+<script src="stats.js?v=15"></script>
+<script src="trends.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

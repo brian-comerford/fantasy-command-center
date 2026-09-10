@@ -300,6 +300,18 @@ button, input, select {
   color: var(--chalk-dim);
 }
 
+.lock-reminder {
+  background: var(--panel);
+  border: 1px solid var(--gold-dim);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--chalk);
+  margin-bottom: 22px;
+}
+.lock-reminder strong { color: var(--gold); }
+
 .section-heading {
   font-family: var(--font-display);
   font-size: 18px;
@@ -445,6 +457,28 @@ button, input, select {
 .lineup-row .pts.pts-under { color: var(--rust-bright); }
 
 .bench-heading { color: var(--chalk-dim); font-size: 13px; margin: 18px 0 8px; }
+
+.bye-planner-list { display: flex; flex-direction: column; gap: 6px; }
+
+.bye-week-row {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.bye-week-row.soon { border-color: var(--gold-dim); }
+.bye-week-row .week-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+.bye-week-row .players { color: var(--chalk); }
 
 .waiver-list { display: flex; flex-direction: column; gap: 8px; }
 

@@ -318,6 +318,7 @@ async function loadLeagueData(leagueId) {
   let dvp = {};
   let usageTrends = {};
   let teamOpponentThisWeek = {};
+  let teamDateThisWeek = {};
   try {
     const completedWeekNumbers = Array.from({ length: week - 1 }, (_, i) => i + 1);
     const completedWeekEntries = await Promise.all(
@@ -341,17 +342,20 @@ async function loadLeagueData(leagueId) {
     console.warn('Could not compute DVP/usage trends, continuing without them.', e);
   }
 
-  // This week's opponent per NFL team, for matching a player up against
-  // their DVP row above. Read off the current week's projections (already
-  // fetched above) since every entry there carries team/opponent; if that
-  // endpoint's down this week, fall back to whatever's in actual stats for
-  // players who've already played -- same team, same opponent all week.
+  // This week's opponent (and game date) per NFL team -- opponent backs
+  // the DVP matchup badges above, date backs the lineup-lock reminder.
+  // Read off the current week's projections (already fetched above) since
+  // every entry there carries team/opponent/date; if that endpoint's down
+  // this week, fall back to whatever's in actual stats for players who've
+  // already played -- same team, same opponent/date all week.
   try {
     const projRaw = await SleeperAPI.getWeeklyProjectionsRaw(season, week);
     teamOpponentThisWeek = Trends.buildTeamOpponentMap(projRaw, playerMeta);
+    teamDateThisWeek = Trends.buildTeamDateMap(projRaw);
     if (!Object.keys(teamOpponentThisWeek).length) {
       const actualRaw = await SleeperAPI.getActualWeeklyStatsRaw(season, week, CURRENT_WEEK_TTL_MS);
       teamOpponentThisWeek = Trends.buildTeamOpponentMap(actualRaw, playerMeta);
+      teamDateThisWeek = Trends.buildTeamDateMap(actualRaw);
     }
   } catch (e) {
     console.warn("Could not determine this week's matchups for DVP badges, continuing without them.", e);
@@ -403,7 +407,7 @@ async function loadLeagueData(leagueId) {
     lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds, opponent,
-    dvp, usageTrends, teamOpponentThisWeek,
+    dvp, usageTrends, teamOpponentThisWeek, teamDateThisWeek,
   };
 
   const cbsNote = usedCbs ? ', with CBS\'s consensus rank as a tiebreaker' : '';
@@ -756,6 +760,7 @@ function renderLineupTab(data) {
   el('heroTotal').textContent = liveTotal.toFixed(1);
   el('heroLabel').textContent = anyActual ? 'Live starting total' : 'Projected starting total';
 
+  renderLockReminder(data);
   renderInjuryWatch(data);
 
   const swapsList = el('swapsList');
@@ -834,6 +839,149 @@ function renderLineupTab(data) {
   }
 
   renderOpponentLineup(data);
+  loadAndRenderByePlanner(data);
+}
+
+function formatGameDate(dateStr) {
+  // Parsed as local midnight, not UTC, so "today" comparisons below line up
+  // with the reader's own calendar rather than shifting a day depending on
+  // timezone.
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// A heads-up for the one lock most likely to catch someone out: a starter
+// with an earlier kickoff than the rest of the week's slate (almost always
+// Thursday night). Looks only at CURRENT starters who haven't played yet
+// (livePlayerPoints/currentWeekActualPoints already tells us who has), so
+// once Thursday's games are done this naturally moves on to whoever's
+// earliest among what's left -- no separate "is it still Thursday" check
+// needed. Only fires when that earliest kickoff is a genuine minority --
+// a couple of Thursday/Friday starters ahead of an otherwise Sunday
+// lineup -- not every single week just to announce "your team plays
+// Sunday", which is the normal case and not worth a callout.
+function renderLockReminder(data) {
+  const { myRoster, playerMeta, teamDateThisWeek } = data;
+  const el_ = el('lockReminder');
+  if (!myRoster || !teamDateThisWeek) {
+    el_.classList.add('hidden');
+    return;
+  }
+
+  const upcoming = (myRoster.starters || [])
+    .filter(id => id && id !== '0' && playerMeta[id] && !(id in (data.currentWeekActualPoints || {})))
+    .map(id => {
+      const meta = playerMeta[id];
+      const dateStr = teamDateThisWeek[meta.team];
+      return dateStr ? { id, ...meta, date: formatGameDate(dateStr) } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date - b.date);
+
+  if (!upcoming.length) {
+    el_.classList.add('hidden');
+    return;
+  }
+
+  const earliest = upcoming[0];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const daysAway = Math.round((earliest.date - today) / dayMs);
+  if (daysAway < 0) {
+    el_.classList.add('hidden');
+    return;
+  }
+
+  const sameDay = upcoming.filter(p => p.date.getTime() === earliest.date.getTime());
+  if (sameDay.length >= upcoming.length / 2) {
+    // The earliest date covers half or more of what's left to play --
+    // that's just the normal slate, not an early outlier worth flagging.
+    el_.classList.add('hidden');
+    return;
+  }
+
+  const dayLabel = earliest.date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  const whenPhrase = daysAway === 0 ? 'today' : daysAway === 1 ? 'tomorrow' : `in ${daysAway} days`;
+  const names = sameDay.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ');
+  const verb = sameDay.length === 1 ? 'kicks off' : 'kick off';
+
+  el_.classList.remove('hidden');
+  el_.innerHTML = `<strong>Lineup lock heads-up:</strong> ${names} ${verb} ${dayLabel} -- ${whenPhrase}, ahead of the rest of your lineup. Double check that slot before then.`;
+}
+
+// Season-wide bye-week schedule, cached once per season at the state level
+// (not per league -- the NFL schedule is the same across all of them) so
+// switching leagues doesn't refetch it. See Trends.computeByeWeeks for how
+// it's actually derived; this just owns the caching and the 18-week fetch.
+const NFL_REGULAR_SEASON_WEEKS = 18;
+const BYE_SCHEDULE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function ensureByeWeeksLoaded(season) {
+  if (state.byeWeeks && state.byeWeeks.season === season) return state.byeWeeks.data;
+  const weekNumbers = Array.from({ length: NFL_REGULAR_SEASON_WEEKS }, (_, i) => i + 1);
+  const entriesByWeekList = await Promise.all(
+    weekNumbers.map(w => SleeperAPI.getWeeklyProjectionsRaw(season, w, 'regular', BYE_SCHEDULE_TTL_MS))
+  );
+  const entriesByWeek = {};
+  weekNumbers.forEach((w, i) => { entriesByWeek[w] = entriesByWeekList[i]; });
+  const data = Trends.computeByeWeeks(entriesByWeek);
+  state.byeWeeks = { season, data };
+  return data;
+}
+
+// Every player on the roster (starters and bench alike -- a bye affects
+// who you can even start, not just who's currently starting), grouped by
+// which week they're off, current/future weeks only. Lazy and cached at
+// the state level (see ensureByeWeeksLoaded) since it's an 18-week fetch
+// the first time -- cheap after that, for the rest of the session.
+async function loadAndRenderByePlanner(data) {
+  const leagueId = state.activeLeagueId;
+  const heading = el('byePlannerHeading');
+  const list = el('byePlannerList');
+  if (!data.myRoster) {
+    heading.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+
+  let byeWeeks;
+  try {
+    byeWeeks = await ensureByeWeeksLoaded(data.season);
+  } catch (e) {
+    console.warn('Could not load the bye-week schedule, continuing without the planner.', e);
+    heading.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  // The league/tab may have changed while this was in flight.
+  if (state.activeLeagueId !== leagueId) return;
+
+  const byWeek = {};
+  (data.myRoster.players || []).forEach(id => {
+    const meta = data.playerMeta[id];
+    if (!meta) return;
+    const bye = byeWeeks[meta.team];
+    if (!bye || bye < data.week) return;
+    if (!byWeek[bye]) byWeek[bye] = [];
+    byWeek[bye].push({ id, ...meta });
+  });
+
+  const weeksSorted = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
+  heading.classList.toggle('hidden', !weeksSorted.length);
+  list.innerHTML = '';
+  if (!weeksSorted.length) return;
+
+  weeksSorted.forEach(w => {
+    const players = byWeek[w].sort((a, b) => a.name.localeCompare(b.name));
+    const row = document.createElement('div');
+    row.className = 'bye-week-row' + (w - data.week <= 1 ? ' soon' : '');
+    row.innerHTML = `
+      <span class="week-label">Week ${w}</span>
+      <span class="players">${players.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ')}</span>
+    `;
+    list.appendChild(row);
+  });
 }
 
 // "Epstein Islanders" -> "Epstein Islanders'", "Sacko Reague" -> "Sacko

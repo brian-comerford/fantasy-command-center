@@ -94,14 +94,20 @@ const SleeperAPI = (() => {
   }
 
   // Same weekly projections as getWeeklyProjections below, but keeping each
-  // entry's team/opponent instead of discarding everything except stats --
-  // needed for this-week matchup lookups (see Trends.buildTeamOpponentMap).
-  // Cached briefly (current-week projections do shift during the week);
-  // uncached before this it wasn't cached at all, so this is a net-new
-  // safety net against hammering the endpoint on rapid tab/league switches,
-  // not a behavior change anyone should notice.
+  // entry's team/opponent/date instead of discarding everything except
+  // stats -- needed for this-week matchup lookups (see
+  // Trends.buildTeamOpponentMap), the lineup-lock reminder (date), and the
+  // bye-week planner (a bye week's entries exist but carry no opponent, so
+  // scanning a whole season for "team present but opponent missing" finds
+  // it -- see Trends.computeByeWeeks). Cached briefly by default
+  // (current-week projections do shift during the week) but callers pulling
+  // a whole season for the bye-week scan pass a much longer ttlMs, since a
+  // bye schedule doesn't change once the season's set. Uncached before this
+  // it wasn't cached at all, so the short default TTL is a net-new safety
+  // net against hammering the endpoint on rapid tab/league switches, not a
+  // behavior change anyone should notice.
   async function getWeeklyProjectionsRaw(season, week, seasonType = 'regular', ttlMs = 20 * 60 * 1000) {
-    const cacheKey = `fcc_proj_raw_v1_${season}_${week}_${seasonType}`;
+    const cacheKey = `fcc_proj_raw_v2_${season}_${week}_${seasonType}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -125,6 +131,7 @@ const SleeperAPI = (() => {
               stats: entry.stats || {},
               opponent: entry.opponent || null,
               team: entry.team || null,
+              date: entry.date || null,
             }));
           break;
         }
