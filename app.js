@@ -935,6 +935,13 @@ async function ensureByeWeeksLoaded(season) {
 // which week they're off, current/future weeks only. Lazy and cached at
 // the state level (see ensureByeWeeksLoaded) since it's an 18-week fetch
 // the first time -- cheap after that, for the rest of the session.
+//
+// Each week also gets checked for an actual lineup gap (see
+// Optimizer.findByeGaps): a required slot that only that week's bye
+// leaves unfillable, not a spot the roster was already thin at
+// regardless of anyone's bye. A week with a real gap gets a red-flagged
+// warning naming the slot, ahead of the normal "this week or next" gold
+// highlight.
 async function loadAndRenderByePlanner(data) {
   const leagueId = state.activeLeagueId;
   const heading = el('byePlannerHeading');
@@ -974,11 +981,20 @@ async function loadAndRenderByePlanner(data) {
 
   weeksSorted.forEach(w => {
     const players = byWeek[w].sort((a, b) => a.name.localeCompare(b.name));
+    const gaps = Optimizer.findByeGaps(
+      data.league.roster_positions, data.myRoster.players || [], data.playerMeta, players.map(p => p.id)
+    );
     const row = document.createElement('div');
-    row.className = 'bye-week-row' + (w - data.week <= 1 ? ' soon' : '');
+    row.className = 'bye-week-row' + (gaps.length ? ' gap' : w - data.week <= 1 ? ' soon' : '');
+    const warning = gaps.length
+      ? `<div class="bye-gap-warning">No eligible ${gaps.join(' or ')} available this week -- consider a waiver add before then.</div>`
+      : '';
     row.innerHTML = `
       <span class="week-label">Week ${w}</span>
-      <span class="players">${players.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ')}</span>
+      <div class="content">
+        <span class="players">${players.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ')}</span>
+        ${warning}
+      </div>
     `;
     list.appendChild(row);
   });

@@ -178,6 +178,15 @@ for two weeks after that (the NFL doesn't reshuffle its own schedule
 mid-season) and shared across all three of your leagues, so it only
 happens once, not once per league.
 
+Each week also gets checked for a real lineup gap, not just a bye: it
+compares your full roster's best possible lineup against that same
+lineup with the week's bye players pulled out, slot for slot. A week
+where that actually leaves a starting slot with nobody left eligible for
+it gets flagged in red, naming the slot -- "No eligible RB available this
+week." A slot the roster was already thin at regardless of anyone's bye
+doesn't count; only a slot that would've been filled at full strength and
+genuinely can't be anymore triggers it.
+
 ## Injury watch
 
 The Lineup tab flags every rostered player carrying a Sleeper injury/status

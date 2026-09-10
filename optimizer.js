@@ -214,6 +214,34 @@ const Optimizer = (() => {
     return { benchReplacement, waiverReplacement };
   }
 
+  // For one upcoming week, checks whether the players on bye that week
+  // leave any starting slot unfillable that WOULD have been filled at full
+  // roster strength -- a gap actually caused by the bye, not a pre-existing
+  // thin spot the roster already had regardless of anyone's bye. Compares
+  // optimalLineup's assignments index-by-index (same slot position, full
+  // roster vs. roster minus that week's bye players) rather than just
+  // checking "is anything empty now", since a naturally-empty slot (e.g. no
+  // second TE ever rostered) isn't something a bye caused.
+  //
+  // valuation is deliberately not needed here -- which slots CAN be filled
+  // depends only on position eligibility, not on point values, so this
+  // passes an empty one through to optimalLineup.
+  //
+  // Returns the list of affected slot names (e.g. ["RB", "FLEX"]), empty
+  // if the bye doesn't actually cost you a startable slot.
+  function findByeGaps(rosterPositions, rosterPlayerIds, playerMeta, playerIdsOnBye) {
+    const onBye = new Set(playerIdsOnBye);
+    const remaining = (rosterPlayerIds || []).filter(id => !onBye.has(id));
+    const full = optimalLineup(rosterPositions, rosterPlayerIds || [], playerMeta, {});
+    const withByes = optimalLineup(rosterPositions, remaining, playerMeta, {});
+
+    const gaps = [];
+    full.assignments.forEach((a, i) => {
+      if (a.id && !withByes.assignments[i].id) gaps.push(withByes.assignments[i].slot);
+    });
+    return gaps;
+  }
+
   // Scans every OTHER roster in the league for a bench player who'd
   // clearly upgrade one of your own starters -- not a free agent (that's
   // waiverTargets above), a player someone else already owns but isn't
@@ -293,5 +321,5 @@ const Optimizer = (() => {
     return { a, b, diff: Math.round((a.total - b.total) * 100) / 100 };
   }
 
-  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements };
+  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements, findByeGaps };
 })();
