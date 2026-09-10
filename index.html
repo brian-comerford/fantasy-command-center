@@ -49,10 +49,10 @@
       <div id="selectedLeagues" class="selected-leagues"></div>
 
       <label class="field">
-        <span>ESPN proxy URL (optional)</span>
-        <input type="text" id="espnProxyInput" placeholder="e.g. https://your-worker.your-name.workers.dev">
+        <span>Worker proxy URL (optional)</span>
+        <input type="text" id="workerProxyInput" placeholder="e.g. https://your-worker.your-name.workers.dev">
       </label>
-      <p class="muted small">Blends ESPN's projections in alongside Sleeper's and flags how much they agree. Requires a small free Cloudflare Worker -- see worker/espn-proxy.js in the repo. Leave blank to use Sleeper alone.</p>
+      <p class="muted small">Powers two optional features: blending ESPN's projections in alongside Sleeper's, and an "Ask Claude" research button on swap/waiver suggestions. Requires a small free Cloudflare Worker -- see worker/proxy.js in the repo. Leave blank to skip both.</p>
 
       <button id="saveSetupBtn" class="primary-btn hidden">Load Command Center</button>
     </div>
@@ -123,6 +123,7 @@
 <script src="player-id-crosswalk.js"></script>
 <script src="espn-api.js"></script>
 <script src="cbs-api.js"></script>
+<script src="claude-assist.js"></script>
 <script src="scoring.js"></script>
 <script src="optimizer.js"></script>
 <script src="app.js"></script>

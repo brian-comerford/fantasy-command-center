@@ -10,9 +10,11 @@ data from Sleeper's public API for all three of your leagues and helps you:
 - **Trade** — pick players from your roster and an opponent's, and see the
   projected value on each side.
 
-Optionally, it can blend in a second, independent projection source (ESPN)
-alongside Sleeper's and flag how much the two agree — see
-[Optional: blending in ESPN's projections](#optional-blending-in-espns-projections) below.
+Optionally, it can also: blend in a second, independent projection source
+(ESPN) and flag how much the two agree; and put an "Ask Claude" research
+button on each swap/waiver suggestion. See
+[Optional: a Cloudflare Worker unlocks two more features](#optional-a-cloudflare-worker-unlocks-two-more-features)
+below.
 
 ## Running it
 
@@ -25,10 +27,10 @@ tracked (or paste league IDs directly — find one in a league's Sleeper URL,
 the long number after `/leagues/`).
 
 Nothing is sent anywhere except directly to Sleeper's own API — there's no
-backend, no analytics, no accounts. (If you turn on the optional ESPN
-blending below, projection requests also go through a small proxy you host
-yourself, and from there to ESPN's public API — still no third-party
-analytics or accounts involved.)
+backend, no analytics, no accounts. (If you turn on either of the two
+optional features below, requests also go through a small proxy you host
+yourself, and from there to ESPN's public API and/or your own Anthropic
+account — still no third-party analytics.)
 
 ## Hosting on GitHub Pages
 
@@ -74,32 +76,34 @@ tag when CBS's board has an opinion on that exact same-position comparison,
 as a third-opinion tiebreaker alongside the Sleeper/ESPN agreement badge
 below.
 
-## Optional: blending in ESPN's projections
+## Optional: a Cloudflare Worker unlocks two more features
+
+Both of these are off unless you set them up, and the app works exactly as
+before if you skip this section entirely. They share one small proxy
+([`worker/proxy.js`](worker/proxy.js)) you deploy for free on
+[Cloudflare Workers](https://workers.cloudflare.com/):
+
+1. Create a free Cloudflare account, then **Workers & Pages → Create →
+   Create Worker**, paste in the contents of `worker/proxy.js`, and deploy.
+   Cloudflare gives you a URL like `https://your-worker.your-name.workers.dev`.
+2. In the app's **Setup** screen, paste that URL into "Worker proxy URL
+   (optional)" and save. This alone turns on ESPN blending (below); Ask
+   Claude also needs the API key step under its own heading.
+
+### Blending in ESPN's projections
 
 By default the app ranks players using Sleeper's own projections alone
-(plus CBS's rank-based tiebreaker above). You can optionally blend in
-ESPN's independent projections too — the two get averaged per player, and
-swap/waiver suggestions get a badge showing how much the sources agree
-(**Strong** / **Mixed** / **Split**), so a suggestion both sources like
-looks different from one that's a coin flip.
+(plus CBS's rank-based tiebreaker above). This blends in ESPN's independent
+projections too — the two get averaged per player, and swap/waiver
+suggestions get a badge showing how much the sources agree (**Strong** /
+**Mixed** / **Split**), so a suggestion both sources like looks different
+from one that's a coin flip.
 
 This only covers QB/RB/WR/TE — kicker and defense scoring differ enough
 between the two providers (distance-bucketed field goals, points-allowed
 tiers) that translating one into the other would be more misleading than
 useful, so K/DEF valuations always stay Sleeper-only regardless of this
 setting.
-
-It's off unless you set it up, and the app works exactly as before if you
-skip this section entirely:
-
-1. ESPN's projections endpoint doesn't send the CORS headers a browser
-   needs to read it directly, so it has to go through a small proxy. Create
-   a free [Cloudflare Workers](https://workers.cloudflare.com/) account,
-   then **Workers & Pages → Create → Create Worker**, paste in the contents
-   of [`worker/espn-proxy.js`](worker/espn-proxy.js), and deploy. Cloudflare
-   gives you a URL like `https://your-worker.your-name.workers.dev`.
-2. In the app's **Setup** screen, paste that URL into "ESPN proxy URL
-   (optional)" and save.
 
 The proxy itself does no filtering or parsing — ESPN's endpoint ignores
 every documented filter param and always returns its full player database
@@ -108,6 +112,31 @@ parse server-side. Instead the proxy just streams that response straight
 through with CORS headers added, and the browser does the parsing/filtering
 client-side (where a payload that size is trivial), caching the result the
 same way it already caches Sleeper's player list.
+
+### "Ask Claude" — on-demand research on a suggestion
+
+Once the Worker above is deployed, each swap and waiver suggestion can show
+an **Ask Claude** button. Clicking it sends Claude (with live web search
+turned on) a question about that specific matchup — current injury status,
+snap counts, matchup difficulty, beat-reporter buzz — and shows the answer
+right on the card. Nothing runs automatically; it's a real, billed request
+only when you click.
+
+This needs its own one-time setup, separate from the Worker deployment
+above:
+
+1. Create an [Anthropic](https://console.anthropic.com/) account, add
+   billing, and generate an API key.
+2. On your Cloudflare Worker: **Settings → Variables and Secrets → Add →
+   type "Secret"**, name it exactly `ANTHROPIC_API_KEY`, and paste in the
+   key. It's never sent to or visible from the browser — only the Worker
+   holds it.
+
+If that secret isn't set, `/claude-assist` just returns an error and the
+button shows "Couldn't get an answer" rather than breaking anything else.
+Each click costs a few cents on your Anthropic account (model:
+`claude-opus-5`, capped at a short answer with up to 3 searches) — see
+`worker/proxy.js` if you'd rather point it at a cheaper model.
 
 ## Structure
 
@@ -118,10 +147,11 @@ sleeper-api.js            all Sleeper API calls + caching
 player-id-crosswalk.js    maps Sleeper/ESPN/CBS IDs for the same players
 espn-api.js               optional ESPN projections (see above)
 cbs-api.js                CBS consensus rank, used as a tiebreaker (see above)
+claude-assist.js          optional "Ask Claude" research button (see above)
 scoring.js                raw stats -> fantasy points, per league's own rules; blends multiple sources
 optimizer.js              lineup optimizer, waiver gap-finder, trade comparison
 app.js                    state, wiring, rendering
-worker/espn-proxy.js      Cloudflare Worker for the optional ESPN blending -- not part of the deployed site
+worker/proxy.js           Cloudflare Worker for the two optional features above -- not part of the deployed site
 ```
 
 Everything the site itself needs is plain JS/CSS/HTML — no npm install, no

@@ -1,5 +1,5 @@
 /* ESPN Fantasy projections, pulled through a small CORS proxy the user hosts
- * themselves (a Cloudflare Worker -- see worker/espn-proxy.js). ESPN's public
+ * themselves (a Cloudflare Worker -- see worker/proxy.js). ESPN's public
  * player-projections endpoint works fine over plain HTTPS but doesn't send
  * CORS headers, so a browser can't read the response directly without one.
  *

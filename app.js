@@ -9,7 +9,7 @@ const state = {
   leagueData: {},         // leagueId -> { league, rosters, users, myRoster, playerMeta, valuation, agreement, week, season, projSource, rosteredIds, trendingIds }
   candidateLeagues: [],   // during setup, leagues found for the username
   selectedCandidates: new Set(),
-  espnProxyUrl: null,
+  workerProxyUrl: null,
   trade: { opponentRosterId: null, sideA: new Set(), sideB: new Set() },
 };
 
@@ -32,7 +32,7 @@ function saveSetup() {
     username: state.username,
     userId: state.userId,
     leagues: state.leagues,
-    espnProxyUrl: state.espnProxyUrl,
+    workerProxyUrl: state.workerProxyUrl,
   }));
 }
 
@@ -46,7 +46,7 @@ function initSetup() {
   el('addManualLeagueBtn').addEventListener('click', onAddManualLeague);
   el('saveSetupBtn').addEventListener('click', onSaveSetup);
   el('settingsBtn').addEventListener('click', () => {
-    el('espnProxyInput').value = state.espnProxyUrl || '';
+    el('workerProxyInput').value = state.workerProxyUrl || '';
     renderSelectedLeagues();
     el('setupPanel').classList.remove('hidden');
     el('dashboard').classList.add('hidden');
@@ -140,7 +140,7 @@ async function onAddManualLeague() {
 }
 
 function onSaveSetup() {
-  state.espnProxyUrl = el('espnProxyInput').value.trim() || null;
+  state.workerProxyUrl = el('workerProxyInput').value.trim() || null;
   saveSetup();
   el('setupPanel').classList.add('hidden');
   el('dashboard').classList.remove('hidden');
@@ -221,9 +221,9 @@ async function loadLeagueData(leagueId) {
   let valuation = sleeperValuation;
   let agreement = {};
   let usedEspn = false;
-  if (projSource === 'projection' && state.espnProxyUrl) {
+  if (projSource === 'projection' && state.workerProxyUrl) {
     try {
-      const espnStats = await EspnAPI.getWeeklyProjections(state.espnProxyUrl, season, week);
+      const espnStats = await EspnAPI.getWeeklyProjections(state.workerProxyUrl, season, week);
       if (espnStats && Object.keys(espnStats).length) {
         const espnValuation = Scoring.projectedPointsForLeague(espnStats, league.scoring_settings || {});
         const blend = Scoring.blendValuations([
@@ -284,6 +284,47 @@ function confidenceBadges(incomingId, outgoingId, data) {
   }
 
   return html;
+}
+
+/* ---------------- Ask Claude ---------------- */
+
+// Markup for the on-demand research button, or '' if no Worker proxy is
+// configured (same graceful-degradation pattern as ESPN/CBS: the feature
+// just doesn't appear rather than erroring).
+function askClaudeMarkup() {
+  if (!state.workerProxyUrl) return '';
+  return `
+    <div class="ask-claude-wrap">
+      <button type="button" class="ask-claude-btn">Ask Claude</button>
+      <div class="ask-claude-result hidden"></div>
+    </div>
+  `;
+}
+
+// Wires the click handler for a card's "Ask Claude" button (a no-op if the
+// card has none, i.e. no proxy configured). questionFn is called lazily on
+// click, not up front, since building it can reference data not needed
+// unless the button is actually used.
+function wireAskClaudeButton(card, questionFn) {
+  const btn = card.querySelector('.ask-claude-btn');
+  if (!btn) return;
+  const resultEl = card.querySelector('.ask-claude-result');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Researching…';
+    resultEl.classList.remove('hidden');
+    resultEl.textContent = '';
+    try {
+      const text = await ClaudeAssist.ask(state.workerProxyUrl, questionFn());
+      resultEl.textContent = text;
+      btn.textContent = 'Ask again';
+    } catch (e) {
+      resultEl.textContent = `Couldn't get an answer: ${e.message}`;
+      btn.textContent = 'Try again';
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 /* ---------------- Tab switching ---------------- */
@@ -351,7 +392,12 @@ function renderLineupTab(data) {
           <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts</span>
         </div>
         <span class="swap-gain">+${s.gain.toFixed(1)}</span>
+        ${askClaudeMarkup()}
       `;
+      wireAskClaudeButton(card, () => ClaudeAssist.buildSwapQuestion({
+        league: data.league.name, week: data.week, season: data.season,
+        incoming: s.benchPlayer, outgoing: s.starterPlayer, slot: s.slot,
+      }));
       swapsList.appendChild(card);
     });
   }
@@ -423,7 +469,12 @@ function renderWaiversTab(data) {
         <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts</span>
       </div>
       <span class="waiver-edge">+${s.edge.toFixed(1)}</span>
+      ${askClaudeMarkup()}
     `;
+    wireAskClaudeButton(card, () => ClaudeAssist.buildWaiverQuestion({
+      league: data.league.name, week: data.week, season: data.season,
+      add: s.add, drop: s.considerDropping,
+    }));
     list.appendChild(card);
   });
 }
@@ -525,7 +576,7 @@ function renderTradeResult() {
     state.username = saved.username;
     state.userId = saved.userId;
     state.leagues = saved.leagues;
-    state.espnProxyUrl = saved.espnProxyUrl || null;
+    state.workerProxyUrl = saved.workerProxyUrl || null;
     el('setupPanel').classList.add('hidden');
     el('dashboard').classList.remove('hidden');
     bootDashboard();
