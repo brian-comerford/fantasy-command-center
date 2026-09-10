@@ -6,9 +6,10 @@ const state = {
   userId: null,
   leagues: [],           // [{ id, name }]
   activeLeagueId: null,
-  leagueData: {},         // leagueId -> { league, rosters, users, myRoster, playerMeta, valuation, week, season, projSource, rosteredIds, trendingIds }
+  leagueData: {},         // leagueId -> { league, rosters, users, myRoster, playerMeta, valuation, agreement, week, season, projSource, rosteredIds, trendingIds }
   candidateLeagues: [],   // during setup, leagues found for the username
   selectedCandidates: new Set(),
+  espnProxyUrl: null,
   trade: { opponentRosterId: null, sideA: new Set(), sideB: new Set() },
 };
 
@@ -31,6 +32,7 @@ function saveSetup() {
     username: state.username,
     userId: state.userId,
     leagues: state.leagues,
+    espnProxyUrl: state.espnProxyUrl,
   }));
 }
 
@@ -44,6 +46,8 @@ function initSetup() {
   el('addManualLeagueBtn').addEventListener('click', onAddManualLeague);
   el('saveSetupBtn').addEventListener('click', onSaveSetup);
   el('settingsBtn').addEventListener('click', () => {
+    el('espnProxyInput').value = state.espnProxyUrl || '';
+    renderSelectedLeagues();
     el('setupPanel').classList.remove('hidden');
     el('dashboard').classList.add('hidden');
   });
@@ -136,6 +140,7 @@ async function onAddManualLeague() {
 }
 
 function onSaveSetup() {
+  state.espnProxyUrl = el('espnProxyInput').value.trim() || null;
   saveSetup();
   el('setupPanel').classList.add('hidden');
   el('dashboard').classList.remove('hidden');
@@ -198,14 +203,39 @@ async function loadLeagueData(leagueId) {
 
   const myRoster = rosters.find(r => r.owner_id === state.userId) || rosters[0];
 
-  let valuation = {};
+  let sleeperValuation = {};
   let projSource = 'projection';
   const projections = await SleeperAPI.getWeeklyProjections(season, week).catch(() => null);
   if (projections && Object.keys(projections).length) {
-    valuation = Scoring.projectedPointsForLeague(projections, league.scoring_settings || {});
+    sleeperValuation = Scoring.projectedPointsForLeague(projections, league.scoring_settings || {});
   } else {
     projSource = 'recent-average';
-    valuation = await SleeperAPI.getRecentAveragePoints(leagueId, week, 3);
+    sleeperValuation = await SleeperAPI.getRecentAveragePoints(leagueId, week, 3);
+  }
+
+  // ESPN projections are an optional second opinion (see espn-api.js) --
+  // only blended in when the projection source is live projections (not the
+  // recent-average fallback, which isn't really comparable) and only for
+  // players ESPN actually projects (QB/RB/WR/TE).
+  let valuation = sleeperValuation;
+  let agreement = {};
+  let usedEspn = false;
+  if (projSource === 'projection' && state.espnProxyUrl) {
+    try {
+      const espnStats = await EspnAPI.getWeeklyProjections(state.espnProxyUrl, season, week);
+      if (espnStats && Object.keys(espnStats).length) {
+        const espnValuation = Scoring.projectedPointsForLeague(espnStats, league.scoring_settings || {});
+        const blend = Scoring.blendValuations([
+          { name: 'Sleeper', points: sleeperValuation },
+          { name: 'ESPN', points: espnValuation },
+        ]);
+        valuation = blend.blended;
+        agreement = blend.agreement;
+        usedEspn = true;
+      }
+    } catch (e) {
+      console.warn('ESPN proxy unavailable, continuing on Sleeper alone.', e);
+    }
   }
 
   const rosteredIds = [];
@@ -213,14 +243,26 @@ async function loadLeagueData(leagueId) {
   const trendingIds = new Set((trendingAdds || []).map(t => t.player_id));
 
   state.leagueData[leagueId] = {
-    league, rosters, users, myRoster, playerMeta, valuation,
+    league, rosters, users, myRoster, playerMeta, valuation, agreement,
     week, season, projSource, rosteredIds, trendingIds,
   };
 
   el('weekReadout').textContent = `${league.season} · Week ${week}`;
-  el('statusLine').textContent = projSource === 'projection'
-    ? `Using live weekly projections, scored to ${league.name}'s own settings.`
-    : `Live projections weren't available this time, so rankings use each player's actual scoring average over their last 3 games instead.`;
+  el('statusLine').textContent = projSource !== 'projection'
+    ? `Live projections weren't available this time, so rankings use each player's actual scoring average over their last 3 games instead.`
+    : usedEspn
+      ? `Blending Sleeper + ESPN projections, scored to ${league.name}'s own settings.`
+      : `Using live weekly projections, scored to ${league.name}'s own settings.`;
+}
+
+// Small "how much do the sources agree" pill for a player, or '' if there's
+// nothing to show (no ESPN data for this player, or ESPN isn't configured).
+function agreementBadge(playerId, data) {
+  const info = data.agreement && data.agreement[playerId];
+  if (!info || info.level === 'single-source') return '';
+  const label = info.level === 'strong' ? 'Strong' : info.level === 'moderate' ? 'Mixed' : 'Split';
+  const tooltip = info.sources.map(s => `${s.name}: ${s.pts.toFixed(1)}`).join(' · ');
+  return `<span class="agreement-badge level-${info.level}" title="${tooltip}">${label}</span>`;
 }
 
 /* ---------------- Tab switching ---------------- */
@@ -284,7 +326,7 @@ function renderLineupTab(data) {
         </div>
         <span class="swap-arrow">→</span>
         <div class="player-chip">
-          <span class="name">${s.benchPlayer.name}</span>
+          <span class="name">${s.benchPlayer.name} ${agreementBadge(s.benchPlayer.id, data)}</span>
           <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts</span>
         </div>
         <span class="swap-gain">+${s.gain.toFixed(1)}</span>
@@ -351,7 +393,7 @@ function renderWaiversTab(data) {
     card.className = 'waiver-card';
     card.innerHTML = `
       <div class="player-chip">
-        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''}</span>
+        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${agreementBadge(s.add.id, data)}</span>
         <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts</span>
       </div>
       <span class="swap-arrow">could replace</span>
@@ -462,6 +504,7 @@ function renderTradeResult() {
     state.username = saved.username;
     state.userId = saved.userId;
     state.leagues = saved.leagues;
+    state.espnProxyUrl = saved.espnProxyUrl || null;
     el('setupPanel').classList.add('hidden');
     el('dashboard').classList.remove('hidden');
     bootDashboard();

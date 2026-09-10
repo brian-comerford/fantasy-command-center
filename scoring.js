@@ -36,5 +36,41 @@ const Scoring = (() => {
     return out;
   }
 
-  return { pointsFromStats, projectedPointsForLeague };
+  // Blends multiple independently-sourced valuations (e.g. Sleeper + ESPN)
+  // into one number per player, plus an "agreement" signal -- how close the
+  // sources are, relative to the size of the projection -- so swap/waiver
+  // suggestions can be flagged as strong calls vs. shakier ones where the
+  // sources disagree.
+  //
+  // @param sources array of { name, points: { [player_id]: number } }
+  // @returns { blended: { [id]: number }, agreement: { [id]: { level, spread, sources } } }
+  function blendValuations(sources) {
+    const ids = new Set();
+    sources.forEach(s => Object.keys(s.points).forEach(id => ids.add(id)));
+
+    const blended = {};
+    const agreement = {};
+    ids.forEach(id => {
+      const values = sources
+        .map(s => ({ name: s.name, pts: s.points[id] }))
+        .filter(v => typeof v.pts === 'number');
+      if (!values.length) return;
+
+      const avg = values.reduce((sum, v) => sum + v.pts, 0) / values.length;
+      blended[id] = Math.round(avg * 100) / 100;
+
+      if (values.length < 2) {
+        agreement[id] = { level: 'single-source', spread: 0, sources: values };
+        return;
+      }
+      const spread = Math.max(...values.map(v => v.pts)) - Math.min(...values.map(v => v.pts));
+      const relSpread = avg > 0 ? spread / avg : 0;
+      const level = relSpread <= 0.15 ? 'strong' : relSpread <= 0.35 ? 'moderate' : 'split';
+      agreement[id] = { level, spread: Math.round(spread * 100) / 100, sources: values };
+    });
+
+    return { blended, agreement };
+  }
+
+  return { pointsFromStats, projectedPointsForLeague, blendValuations };
 })();

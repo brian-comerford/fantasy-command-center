@@ -396,6 +396,17 @@ button, input, select {
   font-weight: 600;
 }
 
+.agreement-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: help;
+}
+.agreement-badge.level-strong { background: rgba(79, 137, 100, 0.18); color: var(--turf-bright); }
+.agreement-badge.level-moderate { background: rgba(216, 169, 59, 0.15); color: var(--gold); }
+.agreement-badge.level-split { background: rgba(196, 74, 74, 0.18); color: #E08484; }
+
 .waiver-edge {
   margin-left: auto;
   color: var(--turf-bright);
