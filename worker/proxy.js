@@ -20,7 +20,7 @@
  * really deployed, so a stale-code guess doesn't have to be one.
  */
 
-const WORKER_VERSION = 1;
+const WORKER_VERSION = 2;
 
 export default {
   async fetch(request, env) {
@@ -150,7 +150,9 @@ async function handleClaudeAssist(request, env) {
         '(no **bold**, no headers, no bullet or numbered lists, no asterisks ' +
         'at all). This is displayed as plain text on a small card, not ' +
         'rendered as markdown, so any formatting characters would show up ' +
-        'literally.',
+        'literally. Do not narrate what you are about to do (no "I\'ll ' +
+        'search for...", "Let me check...", etc.) -- just give the final ' +
+        'answer directly.',
       // 3 was too tight for a two-player comparison (each player alone can
       // take 2+ searches for injury/role/matchup), so Claude was running
       // out of budget partway through and returning a hedged non-answer.
@@ -168,25 +170,29 @@ async function handleClaudeAssist(request, env) {
   }
 
   const data = await anthropicRes.json();
-  // Web search splits the answer into several small text blocks: adjacent
-  // ones (no tool call between them) are fragments of one continuous
-  // passage around a citation point, so those get concatenated directly.
-  // But a text block separated from the next by a tool_use/tool_result --
-  // e.g. Claude's "I'll search for X" remark before the search, then its
-  // real answer after -- is a genuinely separate remark, not a citation
-  // fragment, and needs a space (not zero, not "\n\n") between it and
-  // what follows or the words run together.
-  let text = '';
-  let lastWasText = false;
-  for (const block of data.content || []) {
-    if (block.type === 'text') {
-      text += (lastWasText || !text ? '' : ' ') + block.text;
-      lastWasText = true;
-    } else {
-      lastWasText = false;
-    }
-  }
-  text = text.replace(/\s+/g, ' ').trim();
+  // Only the text blocks AFTER the last tool call are the real answer.
+  // Anything before that is narration Claude said on the way there ("I'll
+  // search for X", "Now let me check Y") -- not part of the answer, so it
+  // gets dropped entirely rather than displayed. The system prompt above
+  // also asks Claude not to narrate, but this doesn't depend on it
+  // actually complying.
+  //
+  // Within that final stretch, web search splits the answer into several
+  // small adjacent text blocks around each citation point -- fragments of
+  // one continuous passage, not separate paragraphs -- so they're
+  // concatenated directly rather than with blank lines between them.
+  const content = data.content || [];
+  let lastToolBlockIndex = -1;
+  content.forEach((block, i) => {
+    if (block.type !== 'text') lastToolBlockIndex = i;
+  });
+  const text = content
+    .slice(lastToolBlockIndex + 1)
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   return new Response(JSON.stringify({ text: text || "Claude didn't return a text answer." }), {
     headers: { ...corsHeaders(), 'content-type': 'application/json' },
