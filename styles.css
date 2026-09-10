@@ -466,6 +466,7 @@ button, input, select {
   padding: 2px 8px;
   border-radius: 999px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .agreement-badge {
@@ -474,6 +475,7 @@ button, input, select {
   border-radius: 999px;
   font-weight: 600;
   cursor: help;
+  white-space: nowrap;
 }
 .agreement-badge.level-strong { background: rgba(79, 137, 100, 0.18); color: var(--turf-bright); }
 .agreement-badge.level-moderate { background: rgba(216, 169, 59, 0.15); color: var(--gold); }
@@ -486,6 +488,7 @@ button, input, select {
   font-weight: 600;
   cursor: help;
   border: 1px solid currentColor;
+  white-space: nowrap;
 }
 .cbs-tag.agree { color: var(--turf-bright); }
 .cbs-tag.disagree { color: var(--chalk-dim); }
@@ -496,6 +499,7 @@ button, input, select {
   border-radius: 999px;
   font-weight: 600;
   cursor: help;
+  white-space: nowrap;
 }
 .matchup-badge.good { background: rgba(79, 137, 100, 0.18); color: var(--turf-bright); }
 .matchup-badge.tough { background: rgba(196, 74, 74, 0.18); color: #E08484; }
@@ -507,6 +511,7 @@ button, input, select {
   font-weight: 600;
   cursor: help;
   border: 1px solid currentColor;
+  white-space: nowrap;
 }
 .usage-badge.up { color: var(--turf-bright); }
 .usage-badge.down { color: #E08484; }
