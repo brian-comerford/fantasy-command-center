@@ -326,6 +326,13 @@ button, input, select {
 .player-chip .name { font-weight: 600; font-size: 14px; }
 .player-chip .meta { font-size: 12px; color: var(--chalk-dim); }
 
+.recent-form {
+  display: block;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--chalk-dim);
+}
+
 .swap-gain {
   margin-left: auto;
   color: var(--turf-bright);
@@ -357,6 +364,13 @@ button, input, select {
 }
 
 .lineup-row.empty-slot { border-style: dashed; color: var(--chalk-dim); }
+
+.lineup-player-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 
 .lineup-row .slot-tag {
   font-family: var(--font-display);

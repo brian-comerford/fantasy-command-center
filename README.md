@@ -62,6 +62,13 @@ account — still no third-party analytics.)
   (custom TD values, PPR/half-PPR/standard, TE premium, etc.) rather than
   a generic PPR assumption, so the numbers should match what your league
   actually pays out.
+- Every player's projection is shown alongside two real numbers for
+  comparison: their actual score **last week**, and their **season
+  average** so far. The average only counts weeks they actually played --
+  a bye week or a game missed to injury doesn't drag it down with a false
+  zero, unlike simply averaging whatever a matchup shows for that week
+  (which can't tell "didn't play" apart from "played and scored zero").
+  Nothing shows here until at least one week of the season is complete.
 
 ## A third opinion: CBS's consensus rank
 

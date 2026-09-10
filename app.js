@@ -239,6 +239,38 @@ async function loadLeagueData(leagueId) {
     }
   }
 
+  // Actual scoring history, for comparison against the projection above --
+  // last week's real total plus a season average that only counts weeks a
+  // player actually played (see getActualWeeklyStats). Nothing to show
+  // yet in Week 1, before any week has been completed.
+  let lastWeekPoints = {};
+  let seasonAvgPoints = {};
+  let seasonGamesPlayed = {};
+  const lastCompletedWeek = week - 1;
+  if (lastCompletedWeek >= 1) {
+    try {
+      const weekNumbers = Array.from({ length: lastCompletedWeek }, (_, i) => i + 1);
+      const weekStatsList = await Promise.all(weekNumbers.map(w => SleeperAPI.getActualWeeklyStats(season, w)));
+
+      const lastWeekStats = weekStatsList[weekStatsList.length - 1];
+      lastWeekPoints = Scoring.projectedPointsForLeague(lastWeekStats, league.scoring_settings || {});
+
+      const sums = {};
+      weekStatsList.forEach(weekStats => {
+        const weekPoints = Scoring.projectedPointsForLeague(weekStats, league.scoring_settings || {});
+        for (const [pid, pts] of Object.entries(weekPoints)) {
+          sums[pid] = (sums[pid] || 0) + pts;
+          seasonGamesPlayed[pid] = (seasonGamesPlayed[pid] || 0) + 1;
+        }
+      });
+      for (const pid of Object.keys(sums)) {
+        seasonAvgPoints[pid] = Math.round((sums[pid] / seasonGamesPlayed[pid]) * 100) / 100;
+      }
+    } catch (e) {
+      console.warn('Could not compute actual-performance history, continuing without it.', e);
+    }
+  }
+
   const rosteredIds = [];
   rosters.forEach(r => (r.players || []).forEach(pid => rosteredIds.push(pid)));
   const trendingIds = new Set((trendingAdds || []).map(t => t.player_id));
@@ -246,6 +278,7 @@ async function loadLeagueData(leagueId) {
 
   state.leagueData[leagueId] = {
     league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
+    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed,
     week, season, projSource, rosteredIds, trendingIds,
   };
 
@@ -262,6 +295,22 @@ async function loadLeagueData(leagueId) {
 // how close Sleeper and ESPN's numbers are for the incoming player (omitted
 // if only one of them has data), plus a separate CBS tiebreaker tag when
 // CBS's same-position consensus rank also has an opinion on this exact
+// A small muted "how have they actually been doing" line for a player:
+// last week's real score and their season average (excluding weeks they
+// didn't play), to compare against the projection shown alongside it.
+// Returns '' before any week has been completed, or for a player with no
+// actual-scoring history yet (e.g. just added from waivers).
+function recentFormLine(playerId, data) {
+  const last = data.lastWeekPoints ? data.lastWeekPoints[playerId] : undefined;
+  const avg = data.seasonAvgPoints ? data.seasonAvgPoints[playerId] : undefined;
+  const games = data.seasonGamesPlayed ? data.seasonGamesPlayed[playerId] : 0;
+  if (typeof last !== 'number' && typeof avg !== 'number') return '';
+  const parts = [];
+  if (typeof last === 'number') parts.push(`Last wk ${last.toFixed(1)}`);
+  if (typeof avg === 'number') parts.push(`Season avg ${avg.toFixed(1)}${games ? ` (${games} gm${games === 1 ? '' : 's'})` : ''}`);
+  return `<span class="recent-form">${parts.join(' · ')}</span>`;
+}
+
 // swap. CBS only gives a rank, not a point value, so it never affects the
 // numbers above -- it's shown purely as "does a third source agree".
 function confidenceBadges(incomingId, outgoingId, data) {
@@ -423,11 +472,13 @@ function renderLineupTab(data) {
         <div class="player-chip">
           <span class="name">${s.starterPlayer ? s.starterPlayer.name : 'Empty slot'}</span>
           <span class="meta">${s.starterPlayer ? `${s.starterPlayer.pos} ${s.starterPlayer.team} · ${s.starterPlayer.pts.toFixed(1)} pts` : ''}</span>
+          ${s.starterPlayer ? recentFormLine(s.starterPlayer.id, data) : ''}
         </div>
         <span class="swap-arrow">→</span>
         <div class="player-chip">
           <span class="name">${s.benchPlayer.name} ${confidenceBadges(s.benchPlayer.id, s.starterPlayer ? s.starterPlayer.id : null, data)}</span>
           <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts</span>
+          ${recentFormLine(s.benchPlayer.id, data)}
         </div>
         <span class="swap-gain">+${s.gain.toFixed(1)}</span>
         ${askClaudeMarkup()}
@@ -452,7 +503,10 @@ function renderLineupTab(data) {
     row.className = 'lineup-row' + (!a.id ? ' empty-slot' : '');
     row.innerHTML = `
       <span class="slot-tag">${a.slot}</span>
-      <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'}</span>
+      <div class="lineup-player-cell">
+        <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'}</span>
+        ${meta ? recentFormLine(a.id, data) : ''}
+      </div>
       <span class="pts">${a.id ? a.pts.toFixed(1) : '--'}</span>
     `;
     grid.appendChild(row);
@@ -469,7 +523,10 @@ function renderLineupTab(data) {
       row.className = 'lineup-row';
       row.innerHTML = `
         <span class="slot-tag">BN</span>
-        <span>${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}</span>
+        <div class="lineup-player-cell">
+          <span>${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}</span>
+          ${recentFormLine(p.id, data)}
+        </div>
         <span class="pts">${p.pts.toFixed(1)}</span>
       `;
       grid.appendChild(row);
@@ -504,11 +561,13 @@ function renderWaiversTab(data) {
       <div class="player-chip">
         <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${confidenceBadges(s.add.id, s.considerDropping.id, data)}</span>
         <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts</span>
+        ${recentFormLine(s.add.id, data)}
       </div>
       <span class="swap-arrow">could replace</span>
       <div class="player-chip">
         <span class="name">${s.considerDropping.name}</span>
         <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts</span>
+        ${recentFormLine(s.considerDropping.id, data)}
       </div>
       <span class="waiver-edge">+${s.edge.toFixed(1)}</span>
       ${askClaudeMarkup()}

@@ -138,9 +138,55 @@ const SleeperAPI = (() => {
     return avg;
   }
 
+  // Real per-week stats for every player who actually recorded a stat line
+  // that week (Sleeper's undocumented but reliable stats endpoint -- same
+  // family as the projections one above, just actuals instead of
+  // forecasts). Returns { [player_id]: rawStatsObject }, feedable straight
+  // into Scoring.projectedPointsForLeague exactly like projections are.
+  //
+  // Crucially, a player who didn't play that week (bye, inactive, hadn't
+  // been called up yet) simply has no entry here at all -- unlike the
+  // matchups endpoint's players_points, which includes a 0 for those weeks
+  // too and so can't distinguish "didn't play" from "played and scored
+  // zero". That absence is exactly what callers use to exclude
+  // not-played weeks from a season average instead of dragging it down
+  // with false zeros.
+  //
+  // Cached per (season, week) in localStorage since a completed week's
+  // actual stats are effectively immutable -- no reason to refetch weeks
+  // 1-16 on every load as the season goes on.
+  async function getActualWeeklyStats(season, week) {
+    const cacheKey = `fcc_actual_stats_v1_${season}_${week}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.ts < 6 * 60 * 60 * 1000) return parsed.data;
+      } catch (e) { /* fall through to refetch */ }
+    }
+    let byId = {};
+    try {
+      const data = await getJSON(`https://api.sleeper.com/stats/nfl/${season}/${week}?season_type=regular`);
+      if (Array.isArray(data)) {
+        for (const entry of data) {
+          if (entry && entry.player_id && entry.stats) byId[entry.player_id] = entry.stats;
+        }
+      }
+    } catch (e) {
+      console.warn(`Could not load actual stats for week ${week}`, e);
+    }
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: byId }));
+    } catch (e) {
+      console.warn('Actual-stats cache write failed, continuing without cache.', e);
+    }
+    return byId;
+  }
+
   return {
     getUser, getUserLeagues, getLeague, getRosters, getLeagueUsers,
     getMatchups, getTransactions, getNflState, getTrendingAdds,
     getPlayersTrimmed, getWeeklyProjections, getRecentAveragePoints,
+    getActualWeeklyStats,
   };
 })();
