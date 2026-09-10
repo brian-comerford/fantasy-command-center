@@ -206,12 +206,35 @@ async function loadLeagueData(leagueId) {
 
   let sleeperValuation = {};
   let projSource = 'projection';
-  const projections = await SleeperAPI.getWeeklyProjections(season, week).catch(() => null);
+  const [projections, matchups] = await Promise.all([
+    SleeperAPI.getWeeklyProjections(season, week).catch(() => null),
+    SleeperAPI.getMatchups(leagueId, week).catch(() => []),
+  ]);
   if (projections && Object.keys(projections).length) {
     sleeperValuation = Scoring.projectedPointsForLeague(projections, league.scoring_settings || {});
   } else {
     projSource = 'recent-average';
     sleeperValuation = await SleeperAPI.getRecentAveragePoints(leagueId, week, 3);
+  }
+
+  // This week's opponent, for the "opponent's total" callout on the
+  // Lineup tab -- null if the matchup fetch failed or this roster has no
+  // pairing this week (a bye, in an odd-sized league). Their starters
+  // come straight from the matchup entry, same shape as myRoster.starters,
+  // so they can run through Optimizer.currentLineup exactly like our own.
+  let opponent = null;
+  const myMatchup = matchups.find(t => t.roster_id === myRoster.roster_id);
+  if (myMatchup && myMatchup.matchup_id != null) {
+    const oppMatchup = matchups.find(t => t.matchup_id === myMatchup.matchup_id && t.roster_id !== myRoster.roster_id);
+    if (oppMatchup) {
+      const oppRoster = rosters.find(r => r.roster_id === oppMatchup.roster_id);
+      const oppUser = oppRoster ? users.find(u => u.user_id === oppRoster.owner_id) : null;
+      opponent = {
+        name: oppUser ? (oppUser.metadata?.team_name || oppUser.display_name) : `Team ${oppMatchup.roster_id}`,
+        starters: oppMatchup.starters || [],
+        players: oppRoster ? (oppRoster.players || []) : [],
+      };
+    }
   }
 
   // ESPN projections are an optional second opinion (see espn-api.js) --
@@ -329,7 +352,7 @@ async function loadLeagueData(leagueId) {
     league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
     lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
-    week, season, projSource, rosteredIds, trendingIds,
+    week, season, projSource, rosteredIds, trendingIds, opponent,
   };
 
   const cbsNote = usedCbs ? ', with CBS\'s consensus rank as a tiebreaker' : '';
@@ -715,6 +738,69 @@ function renderLineupTab(data) {
       grid.appendChild(row);
     });
   }
+
+  renderOpponentLineup(data);
+}
+
+// "Epstein Islanders" -> "Epstein Islanders'", "Sacko Reague" -> "Sacko
+// Reague's" -- team names are free text, and plenty of them end in "s".
+function possessive(name) {
+  return name.endsWith('s') ? `${name}'` : `${name}'s`;
+}
+
+// This week's opponent -- their live total (same "projected until they've
+// actually played" logic as the hero total above, with the same
+// green/red-over-projection coloring per player) alongside a read-only
+// breakdown of their starters. Hidden entirely if there's no opponent
+// this week (a bye in an odd-sized league, or the matchup fetch failed).
+function renderOpponentLineup(data) {
+  const { league, playerMeta, opponent } = data;
+  const heroBlock = el('opponentHeroBlock');
+  const heading = el('opponentHeading');
+  const grid = el('opponentGrid');
+
+  if (!opponent) {
+    heroBlock.classList.add('hidden');
+    heading.classList.add('hidden');
+    grid.innerHTML = '';
+    return;
+  }
+
+  const oppLineup = Optimizer.currentLineup(
+    league.roster_positions, opponent.starters, opponent.players, playerMeta, data.valuation
+  );
+
+  let oppLiveTotal = 0;
+  let oppAnyActual = false;
+  oppLineup.assignments.forEach(a => {
+    if (!a.id) return;
+    const live = livePlayerPoints(a.id, a.pts, data);
+    oppLiveTotal += live.pts;
+    if (live.isActual) oppAnyActual = true;
+  });
+
+  heroBlock.classList.remove('hidden');
+  el('oppHeroLabel').textContent = `${possessive(opponent.name)} ${oppAnyActual ? 'live' : 'projected'} total`;
+  el('oppHeroTotal').textContent = oppLiveTotal.toFixed(1);
+
+  heading.classList.remove('hidden');
+  heading.textContent = `This week's opponent: ${opponent.name}`;
+
+  grid.innerHTML = '';
+  oppLineup.assignments.forEach(a => {
+    const meta = a.id ? playerMeta[a.id] : null;
+    const live = a.id ? livePlayerPoints(a.id, a.pts, data) : null;
+    const row = document.createElement('div');
+    row.className = 'lineup-row' + (!a.id ? ' empty-slot' : '');
+    row.innerHTML = `
+      <span class="slot-tag">${a.slot}</span>
+      <div class="lineup-player-cell">
+        <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'}</span>
+      </div>
+      <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}">${live ? live.pts.toFixed(1) : '--'}</span>
+    `;
+    grid.appendChild(row);
+  });
 }
 
 // Every rostered player carrying a Sleeper injury/status tag (Questionable,

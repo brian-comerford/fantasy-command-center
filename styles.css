@@ -266,6 +266,14 @@ button, input, select {
   min-height: 16px;
 }
 
+.matchup-totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 40px;
+  row-gap: 12px;
+}
+
 .hero-total {
   display: flex;
   align-items: baseline;
@@ -285,6 +293,11 @@ button, input, select {
   font-weight: 600;
   color: var(--gold);
   line-height: 1;
+}
+
+.opponent-hero .hero-number {
+  font-size: 36px;
+  color: var(--chalk-dim);
 }
 
 .section-heading {

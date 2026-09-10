@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=10" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=11" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -71,15 +71,23 @@
     <div id="statusLine" class="status-line"></div>
 
     <section id="lineupTab" class="tab-panel">
-      <div class="hero-total">
-        <span class="hero-label" id="heroLabel">Projected starting total</span>
-        <span class="hero-number" id="heroTotal">--</span>
+      <div class="matchup-totals">
+        <div class="hero-total">
+          <span class="hero-label" id="heroLabel">Projected starting total</span>
+          <span class="hero-number" id="heroTotal">--</span>
+        </div>
+        <div class="hero-total opponent-hero hidden" id="opponentHeroBlock">
+          <span class="hero-label" id="oppHeroLabel">Opponent's projected total</span>
+          <span class="hero-number" id="oppHeroTotal">--</span>
+        </div>
       </div>
       <div id="injuryWatch" class="injury-watch"></div>
       <h2 class="section-heading hidden" id="swapsHeading">Suggested swaps</h2>
       <div id="swapsList" class="swaps-list"></div>
       <h2 class="section-heading">Your current lineup</h2>
       <div id="lineupGrid" class="lineup-grid"></div>
+      <h2 class="section-heading hidden" id="opponentHeading">This week's opponent</h2>
+      <div id="opponentGrid" class="lineup-grid"></div>
     </section>
 
     <section id="waiversTab" class="tab-panel hidden">
@@ -189,14 +197,14 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=10"></script>
-<script src="player-id-crosswalk.js?v=10"></script>
-<script src="espn-api.js?v=10"></script>
-<script src="cbs-api.js?v=10"></script>
-<script src="claude-assist.js?v=10"></script>
-<script src="scoring.js?v=10"></script>
-<script src="optimizer.js?v=10"></script>
-<script src="stats.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="sleeper-api.js?v=11"></script>
+<script src="player-id-crosswalk.js?v=11"></script>
+<script src="espn-api.js?v=11"></script>
+<script src="cbs-api.js?v=11"></script>
+<script src="claude-assist.js?v=11"></script>
+<script src="scoring.js?v=11"></script>
+<script src="optimizer.js?v=11"></script>
+<script src="stats.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
