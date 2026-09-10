@@ -63,22 +63,27 @@ account — still no third-party analytics.)
   a generic PPR assumption, so the numbers should match what your league
   actually pays out.
 - Every player's projection is shown alongside two real numbers for
-  comparison: their actual score **last week**, and their **season
-  average** so far. The average only counts weeks they actually played --
-  a bye week or a game missed to injury doesn't drag it down with a false
-  zero, unlike simply averaging whatever a matchup shows for that week
-  (which can't tell "didn't play" apart from "played and scored zero").
-  In Week 1, before this season has any completed weeks of its own, these
-  numbers fall back to **last season's** actuals instead of showing
-  nothing -- each player's most recent game with recorded stats (not
-  necessarily Week 18, if their season ended earlier) and their full
-  season average, labeled with the year so it's never mistaken for a
-  current-season number. One honest caveat: a handful of star players on
-  teams that had already locked their playoff seeding get benched for
-  Week 18, the season's last week, so "last game" can show a misleadingly
-  low number for them specifically -- that's real data (they were active
-  but barely played), not a bug, and it stops mattering the moment Week 2
-  arrives and this reverts to true current-season numbers.
+  comparison: their actual score for their **most recently completed
+  game**, and their **season average** so far. Both update per-player as
+  soon as that player's own game concludes -- a Thursday-night player
+  shows fresh numbers by Friday, without waiting for Sunday and Monday's
+  games to finish the rest of the week. The average only counts weeks they
+  actually played -- a bye week or a game missed to injury doesn't drag it
+  down with a false zero, unlike simply averaging whatever a matchup shows
+  for that week (which can't tell "didn't play" apart from "played and
+  scored zero").
+  Early in the season, before a given player has played their first game
+  yet, these numbers fall back to **last season's** actuals instead of
+  showing nothing -- their most recent game with recorded stats last
+  season (not necessarily Week 18, if their season ended earlier) and
+  their full season average, labeled with the year so it's never mistaken
+  for a current-season number. One honest caveat: a handful of star
+  players on teams that had already locked their playoff seeding get
+  benched for Week 18, last season's last week, so "last game" can show a
+  misleadingly low number for them specifically in that fallback -- that's
+  real data (they were active but barely played), not a bug, and it stops
+  mattering the moment that player's first game of the new season is in
+  the books.
 
 ## A third opinion: CBS's consensus rank
 

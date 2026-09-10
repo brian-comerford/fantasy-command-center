@@ -240,68 +240,75 @@ async function loadLeagueData(leagueId) {
   }
 
   // Actual scoring history, for comparison against the projection above --
-  // last week's real total plus a season average that only counts weeks a
-  // player actually played (see getActualWeeklyStats).
+  // each player's most recently completed game plus a season average that
+  // only counts weeks they actually played (see getActualWeeklyStats).
+  //
+  // This is per-player, not gated by whether the whole week is over: it
+  // includes the current, possibly-in-progress week, so a player whose
+  // game already happened (e.g. Thursday night) shows that result right
+  // away rather than waiting for Sunday/Monday's games to finish too. The
+  // current week's fetch uses a short cache TTL for exactly that reason --
+  // its data can still change over the course of the week -- while
+  // earlier, fully-settled weeks use the normal long TTL.
   let lastWeekPoints = {};
   let seasonAvgPoints = {};
   let seasonGamesPlayed = {};
-  let recentFormPriorSeason = false;
-  const lastCompletedWeek = week - 1;
-  if (lastCompletedWeek >= 1) {
-    try {
-      const weekNumbers = Array.from({ length: lastCompletedWeek }, (_, i) => i + 1);
-      const weekStatsList = await Promise.all(weekNumbers.map(w => SleeperAPI.getActualWeeklyStats(season, w)));
+  const CURRENT_WEEK_TTL_MS = 15 * 60 * 1000;
+  try {
+    const weekNumbers = Array.from({ length: week }, (_, i) => i + 1);
+    const weekStatsList = await Promise.all(
+      weekNumbers.map(w => SleeperAPI.getActualWeeklyStats(season, w, w === week ? CURRENT_WEEK_TTL_MS : undefined))
+    );
 
-      const lastWeekStats = weekStatsList[weekStatsList.length - 1];
-      lastWeekPoints = Scoring.projectedPointsForLeague(lastWeekStats, league.scoring_settings || {});
-
-      const sums = {};
-      weekStatsList.forEach(weekStats => {
-        const weekPoints = Scoring.projectedPointsForLeague(weekStats, league.scoring_settings || {});
-        for (const [pid, pts] of Object.entries(weekPoints)) {
-          sums[pid] = (sums[pid] || 0) + pts;
-          seasonGamesPlayed[pid] = (seasonGamesPlayed[pid] || 0) + 1;
-        }
-      });
-      for (const pid of Object.keys(sums)) {
-        seasonAvgPoints[pid] = Math.round((sums[pid] / seasonGamesPlayed[pid]) * 100) / 100;
+    const sums = {};
+    for (let i = weekStatsList.length - 1; i >= 0; i--) {
+      const weekPoints = Scoring.projectedPointsForLeague(weekStatsList[i], league.scoring_settings || {});
+      for (const [pid, pts] of Object.entries(weekPoints)) {
+        if (!(pid in lastWeekPoints)) lastWeekPoints[pid] = pts;
+        sums[pid] = (sums[pid] || 0) + pts;
+        seasonGamesPlayed[pid] = (seasonGamesPlayed[pid] || 0) + 1;
       }
-    } catch (e) {
-      console.warn('Could not compute actual-performance history, continuing without it.', e);
     }
-  } else {
-    // Week 1: this season has no completed weeks yet, so fall back to last
-    // season's actuals as a stand-in rather than showing nothing at all.
-    // "Last week" here means each player's most recent game with recorded
-    // stats last season (scanned from the end), not a fixed week number --
-    // a player whose season ended early to injury still shows their last
-    // real game instead of a blank. The season average covers all of last
-    // season, same not-played-weeks exclusion as the current-season case.
-    // Cached with a long TTL since a finished season's stats never change.
-    const PRIOR_SEASON_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-    const NFL_REGULAR_SEASON_WEEKS = 18;
+    for (const pid of Object.keys(sums)) {
+      seasonAvgPoints[pid] = Math.round((sums[pid] / seasonGamesPlayed[pid]) * 100) / 100;
+    }
+  } catch (e) {
+    console.warn('Could not compute actual-performance history, continuing without it.', e);
+  }
+
+  // Fallback to last season's actuals, but only for players this season's
+  // data above didn't cover at all yet -- almost always just "hasn't
+  // played their Week 1 game yet". Only worth fetching early in the
+  // season; by a couple weeks in, essentially everyone relevant has
+  // current-season data and this pool would just go unused every load.
+  let priorLastWeekPoints = {};
+  let priorSeasonAvgPoints = {};
+  let priorSeasonGamesPlayed = {};
+  let priorSeasonYear = null;
+  if (week <= 2) {
     try {
-      const priorSeason = String(Number(season) - 1);
-      const weekNumbers = Array.from({ length: NFL_REGULAR_SEASON_WEEKS }, (_, i) => i + 1);
-      const weekStatsList = await Promise.all(
-        weekNumbers.map(w => SleeperAPI.getActualWeeklyStats(priorSeason, w, PRIOR_SEASON_TTL_MS))
+      const PRIOR_SEASON_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+      const NFL_REGULAR_SEASON_WEEKS = 18;
+      priorSeasonYear = Number(season) - 1;
+      const priorWeekNumbers = Array.from({ length: NFL_REGULAR_SEASON_WEEKS }, (_, i) => i + 1);
+      const priorWeekStatsList = await Promise.all(
+        priorWeekNumbers.map(w => SleeperAPI.getActualWeeklyStats(String(priorSeasonYear), w, PRIOR_SEASON_TTL_MS))
       );
 
       const sums = {};
-      for (let i = weekStatsList.length - 1; i >= 0; i--) {
-        const weekPoints = Scoring.projectedPointsForLeague(weekStatsList[i], league.scoring_settings || {});
+      for (let i = priorWeekStatsList.length - 1; i >= 0; i--) {
+        const weekPoints = Scoring.projectedPointsForLeague(priorWeekStatsList[i], league.scoring_settings || {});
         for (const [pid, pts] of Object.entries(weekPoints)) {
-          if (!(pid in lastWeekPoints)) lastWeekPoints[pid] = pts;
+          if (!(pid in priorLastWeekPoints)) priorLastWeekPoints[pid] = pts;
           sums[pid] = (sums[pid] || 0) + pts;
-          seasonGamesPlayed[pid] = (seasonGamesPlayed[pid] || 0) + 1;
+          priorSeasonGamesPlayed[pid] = (priorSeasonGamesPlayed[pid] || 0) + 1;
         }
       }
       for (const pid of Object.keys(sums)) {
-        seasonAvgPoints[pid] = Math.round((sums[pid] / seasonGamesPlayed[pid]) * 100) / 100;
+        priorSeasonAvgPoints[pid] = Math.round((sums[pid] / priorSeasonGamesPlayed[pid]) * 100) / 100;
       }
-      recentFormPriorSeason = true;
     } catch (e) {
-      console.warn("Could not load last season's actuals as a Week 1 stand-in, continuing without it.", e);
+      console.warn("Could not load last season's actuals as a stand-in, continuing without it.", e);
     }
   }
 
@@ -312,7 +319,8 @@ async function loadLeagueData(leagueId) {
 
   state.leagueData[leagueId] = {
     league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
-    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, recentFormPriorSeason,
+    lastWeekPoints, seasonAvgPoints, seasonGamesPlayed,
+    priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds,
   };
 
@@ -335,19 +343,21 @@ async function loadLeagueData(leagueId) {
 // Returns '' before any week has been completed, or for a player with no
 // actual-scoring history yet (e.g. just added from waivers).
 function recentFormLine(playerId, data) {
-  const last = data.lastWeekPoints ? data.lastWeekPoints[playerId] : undefined;
-  const avg = data.seasonAvgPoints ? data.seasonAvgPoints[playerId] : undefined;
-  const games = data.seasonGamesPlayed ? data.seasonGamesPlayed[playerId] : 0;
+  // Current-season data takes priority whenever it exists for this player
+  // at all -- even just one game so far -- since it's updated per-player
+  // as soon as their own game concludes (see loadLeagueData). Only a
+  // player with nothing yet this season (hasn't played their first game)
+  // falls back to last season's numbers instead of showing nothing.
+  const hasCurrent = data.lastWeekPoints && Object.prototype.hasOwnProperty.call(data.lastWeekPoints, playerId);
+  const prior = !hasCurrent;
+  const last = hasCurrent ? data.lastWeekPoints[playerId] : (data.priorLastWeekPoints ? data.priorLastWeekPoints[playerId] : undefined);
+  const avg = hasCurrent ? data.seasonAvgPoints[playerId] : (data.priorSeasonAvgPoints ? data.priorSeasonAvgPoints[playerId] : undefined);
+  const games = hasCurrent ? data.seasonGamesPlayed[playerId] : (data.priorSeasonGamesPlayed ? data.priorSeasonGamesPlayed[playerId] : 0);
   if (typeof last !== 'number' && typeof avg !== 'number') return '';
-  // Week 1 has no completed weeks of its own yet, so this data is last
-  // season's instead (see loadLeagueData) -- labeled distinctly so it's
-  // never mistaken for a current-season number.
-  const prior = data.recentFormPriorSeason;
-  const priorYear = prior ? Number(data.season) - 1 : null;
   const parts = [];
-  if (typeof last === 'number') parts.push(prior ? `${priorYear} last game ${last.toFixed(1)}` : `Last wk ${last.toFixed(1)}`);
+  if (typeof last === 'number') parts.push(prior ? `${data.priorSeasonYear} last game ${last.toFixed(1)}` : `Last game ${last.toFixed(1)}`);
   if (typeof avg === 'number') {
-    const label = prior ? `${priorYear} avg` : 'Season avg';
+    const label = prior ? `${data.priorSeasonYear} avg` : 'Season avg';
     parts.push(`${label} ${avg.toFixed(1)}${games ? ` (${games} gm${games === 1 ? '' : 's'})` : ''}`);
   }
   return `<span class="recent-form">${parts.join(' · ')}</span>`;
