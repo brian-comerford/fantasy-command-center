@@ -14,10 +14,16 @@ data from Sleeper's public API for all three of your leagues and helps you:
   at the same position, with "trending add" flags.
 - **Trade** — pick players from your roster and an opponent's, and see the
   projected value on each side.
+- **Stats** — once Sleeper has posted real stats for a week, your actual
+  score against what your starting lineup was projected to score, plus a
+  season roll-up: record, points per week, best/worst week, and how often
+  you've outscored your own projection. See
+  [Stats: how your team's actually doing](#stats-how-your-teams-actually-doing)
+  below.
 
 Optionally, it can also: blend in a second, independent projection source
 (ESPN) and flag how much the two agree; and put an "Ask Claude" research
-button on each swap/waiver suggestion. See
+button on each swap/waiver suggestion and on the trade analyzer. See
 [Optional: a Cloudflare Worker unlocks two more features](#optional-a-cloudflare-worker-unlocks-two-more-features)
 below.
 
@@ -152,6 +158,28 @@ tag when CBS's board has an opinion on that exact same-position comparison,
 as a third-opinion tiebreaker alongside the Sleeper/ESPN agreement badge
 below.
 
+## Stats: how your team's actually doing
+
+The **Stats** tab tracks your team's real performance, separate from the
+forward-looking projections everywhere else in the app. It's built
+straight from Sleeper's own matchup data — no setup needed, works the
+same as the always-on CBS rank above.
+
+A week shows up here once Sleeper has posted real stats for it at all
+(usually by Thursday night's game), with your actual score next to what
+your actual starting lineup for that week was projected to score going
+in — not today's lineup, whatever you actually had in. The current week
+specifically is marked **Live**: it updates as your players finish their
+games, same as the Lineup tab, but it's left out of the season summary
+above the table until the week is actually over, since a game or two left
+to play can still swing a live score by a lot.
+
+The season cards roll up every finished week: your record, average points
+per week, best and worst week, and how often — and by how much, on
+average — you've outscored your own week's projection. Diffs and results
+are colored the same green/red convention as the rest of the app: green
+when you beat the number, red when you fell short.
+
 ## Optional: a Cloudflare Worker unlocks two more features
 
 Both of these are off unless you set them up, and the app works exactly as
@@ -191,13 +219,15 @@ same way it already caches Sleeper's player list.
 
 ### "Ask Claude" — on-demand research on a suggestion
 
-Once the Worker above is deployed, each swap and waiver suggestion can show
+Once the Worker above is deployed, each swap and waiver suggestion, and the
+trade analyzer's result once you've picked players on both sides, can show
 an **Ask Claude** button. Clicking it sends Claude (with live web search
-turned on) a question about that specific matchup — current injury status,
-snap counts, matchup difficulty, beat-reporter buzz — and shows the answer
-right on the card. Nothing runs automatically; it's a real, billed request
-only when you click. Answers are cached in your browser per suggestion
-(same league, week, and player pair) -- coming back and clicking again
+turned on) a question about that specific matchup or trade — current
+injury status, snap counts, matchup difficulty, beat-reporter buzz — and
+shows the answer right on the card. Nothing runs automatically; it's a
+real, billed request only when you click. Answers are cached in your
+browser per suggestion (same league, week, and player pair -- or same set
+of players on each side, for a trade) -- coming back and clicking again
 shows the same answer for free instead of spending tokens again, with an
 "Ask again" option if you want a fresh, newly-researched one.
 
@@ -237,6 +267,7 @@ cbs-api.js                CBS consensus rank, used as a tiebreaker (see above)
 claude-assist.js          optional "Ask Claude" research button (see above)
 scoring.js                raw stats -> fantasy points, per league's own rules; blends multiple sources
 optimizer.js              lineup optimizer, waiver gap-finder, trade comparison
+stats.js                  season/weekly actual-vs-projected performance (see above)
 app.js                    state, wiring, rendering
 worker/proxy.js           Cloudflare Worker for the two optional features above -- not part of the deployed site
 ```

@@ -499,6 +499,7 @@ function switchToTab(tabName) {
   const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
   if (btn) btn.classList.add('active');
   el(`${tabName}Tab`).classList.remove('hidden');
+  if (tabName === 'stats') loadAndRenderStatsTab();
 }
 
 function initTabs() {
@@ -568,6 +569,11 @@ function renderActiveTabContent() {
   renderLineupTab(data);
   renderWaiversTab(data);
   renderTradeSetup(data);
+  // Stats is fetched lazily (it walks every played week's matchups and
+  // projections, more calls than the other tabs need) -- only refresh it
+  // here if it's the tab actually on screen; switchToTab covers the case
+  // where the user opens it directly.
+  if (!el('statsTab').classList.contains('hidden')) loadAndRenderStatsTab();
 }
 
 /* ---------------- Lineup tab ---------------- */
@@ -888,7 +894,137 @@ function renderTradeResult() {
       ${result.b.players.map(p => `<div class="meta">${p.name} — ${p.pts.toFixed(1)}</div>`).join('')}
     </div>
     <div class="trade-verdict">${verdict}</div>
+    ${askClaudeMarkup()}
   `;
+
+  const tradeCacheKey = ClaudeAssist.cacheKeyFor({
+    type: 'trade', leagueId: data.league.league_id, season: data.season, week: data.week,
+    aId: result.a.players.map(p => p.id).sort().join(','),
+    bId: result.b.players.map(p => p.id).sort().join(','),
+  });
+  wireAskClaudeButton(container, tradeCacheKey, () => ClaudeAssist.buildTradeQuestion({
+    league: data.league.name, week: data.week, season: data.season,
+    give: result.a.players, receive: result.b.players,
+  }));
+}
+
+/* ---------------- Stats tab ---------------- */
+
+// Walks every week Sleeper has actual stats for, comparing my team's real
+// score to what its actual starting lineup was projected to score. This is
+// heavier than the other tabs (a matchups + projections fetch per played
+// week) so it's loaded lazily -- only when the tab is actually opened --
+// and cached in-memory per league for the rest of the session, keyed off
+// the current week so a new week's results show up on the next visit.
+async function loadAndRenderStatsTab() {
+  const leagueId = state.activeLeagueId;
+  const data = state.leagueData[leagueId];
+  const summaryEl = el('statsSummary');
+  const weeklyEl = el('statsWeekly');
+  if (!data || !data.myRoster) return;
+
+  // Cached results are reused across tab visits within the same week --
+  // except when the most recent week is still in progress, since that
+  // week's score can keep changing as more of its games finish, so it's
+  // worth a fresh fetch each time the tab is revisited rather than
+  // freezing on whatever it showed first.
+  const cache = data.statsCache;
+  const cacheIsStale = !cache || cache.week !== data.week || (cache.weeks.length && cache.weeks[cache.weeks.length - 1].inProgress);
+  if (!cacheIsStale) {
+    renderStatsResults(cache);
+    return;
+  }
+
+  summaryEl.innerHTML = '<p class="muted">Loading season stats…</p>';
+  weeklyEl.innerHTML = '';
+  try {
+    const weeks = await Stats.loadWeeklyPerformance(
+      leagueId, data.myRoster, data.rosters, data.users, data.league, data.week, data.season
+    );
+    // The league/tab may have changed while this was in flight -- don't
+    // paint stale results over whatever's actually on screen now.
+    if (state.activeLeagueId !== leagueId || el('statsTab').classList.contains('hidden')) return;
+    const summary = Stats.summarize(weeks);
+    data.statsCache = { week: data.week, weeks, summary };
+    renderStatsResults(data.statsCache);
+  } catch (e) {
+    if (state.activeLeagueId !== leagueId) return;
+    summaryEl.innerHTML = `<p class="muted">Couldn't load season stats: ${e.message}</p>`;
+  }
+}
+
+function renderStatsResults({ weeks, summary }) {
+  const summaryEl = el('statsSummary');
+  const weeklyEl = el('statsWeekly');
+
+  if (!weeks.length) {
+    summaryEl.innerHTML = '<p class="muted">No games played yet this season -- check back once Week 1 kicks off.</p>';
+    weeklyEl.innerHTML = '';
+    return;
+  }
+
+  const diffClass = (d) => (d == null ? '' : d > 0.05 ? 'stat-positive' : d < -0.05 ? 'stat-negative' : '');
+
+  if (!summary) {
+    summaryEl.innerHTML = '<p class="muted">Season stats will appear here once this week wraps up -- the live score below will keep updating as your players finish their games.</p>';
+  } else {
+    const diffCard = summary.avgDiff != null
+      ? `<div class="stat-card">
+          <span class="stat-label">Vs. projection</span>
+          <span class="stat-value ${diffClass(summary.avgDiff)}">${summary.avgDiff > 0 ? '+' : ''}${summary.avgDiff.toFixed(1)}/wk</span>
+          <span class="stat-sub">Beat it ${summary.beatProjection} of ${summary.projectionWeeks} weeks</span>
+        </div>`
+      : '';
+
+    summaryEl.innerHTML = `
+      <div class="stat-card">
+        <span class="stat-label">Record</span>
+        <span class="stat-value">${summary.record}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Avg points/week</span>
+        <span class="stat-value">${summary.avgFor.toFixed(1)}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Best week</span>
+        <span class="stat-value">${summary.best.myActual.toFixed(1)}</span>
+        <span class="stat-sub">Week ${summary.best.week}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Worst week</span>
+        <span class="stat-value">${summary.worst.myActual.toFixed(1)}</span>
+        <span class="stat-sub">Week ${summary.worst.week}</span>
+      </div>
+      ${diffCard}
+    `;
+  }
+
+  const table = document.createElement('div');
+  table.className = 'stats-table';
+  table.innerHTML = `
+    <div class="stats-row stats-header">
+      <span>Wk</span><span>Opponent</span><span>Result</span><span>Score</span><span>Projected</span><span>Diff</span>
+    </div>
+  `;
+  weeks.slice().reverse().forEach(w => {
+    const resultClass = w.inProgress ? '' : w.result === 'W' ? 'stats-win' : w.result === 'L' ? 'stats-loss' : '';
+    const resultText = w.result
+      ? `${w.inProgress ? 'Live · ' : ''}${w.result} ${w.oppActual.toFixed(1)}`
+      : (w.inProgress ? 'Live' : '--');
+    const row = document.createElement('div');
+    row.className = 'stats-row';
+    row.innerHTML = `
+      <span>${w.week}</span>
+      <span>${w.opponentName || 'Bye'}</span>
+      <span class="${resultClass}">${resultText}</span>
+      <span>${w.myActual.toFixed(1)}</span>
+      <span>${w.myProjected != null ? w.myProjected.toFixed(1) : '--'}</span>
+      <span class="${diffClass(w.diff)}">${w.diff != null ? `${w.diff > 0 ? '+' : ''}${w.diff.toFixed(1)}` : '--'}</span>
+    `;
+    table.appendChild(row);
+  });
+  weeklyEl.innerHTML = '';
+  weeklyEl.appendChild(table);
 }
 
 /* ---------------- Refresh on reopen ---------------- */

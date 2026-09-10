@@ -616,6 +616,71 @@ button, input, select {
   padding: 10px;
 }
 
+/* ---------- Stats tab ---------- */
+
+.stat-positive { color: var(--turf-bright); }
+.stat-negative { color: var(--rust-bright); }
+
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--chalk-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.stat-sub { font-size: 12px; color: var(--chalk-dim); }
+
+.stats-table { display: flex; flex-direction: column; gap: 4px; }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 46px 1fr 100px 70px 90px 70px;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.stats-row.stats-header {
+  background: transparent;
+  border: none;
+  color: var(--chalk-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 14px;
+}
+
+.stats-win { color: var(--turf-bright); font-weight: 600; }
+.stats-loss { color: var(--rust-bright); font-weight: 600; }
+
 /* ---------- Info tab ---------- */
 
 .info-section {
@@ -741,4 +806,9 @@ button, input, select {
   }
   .swap-arrow { align-self: center; }
   .swap-gain, .waiver-edge { margin-left: 0; align-self: flex-end; }
+
+  /* Six columns doesn't fit a phone screen -- scroll horizontally rather
+     than squeezing team names and numbers down to illegible widths. */
+  .stats-table { overflow-x: auto; padding-bottom: 4px; }
+  .stats-row { grid-template-columns: 40px 110px 90px 60px 80px 60px; min-width: 460px; }
 }

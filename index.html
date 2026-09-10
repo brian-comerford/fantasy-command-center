@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=7" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=8" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -65,6 +65,7 @@
       <button class="tab-btn active" data-tab="lineup">Lineup</button>
       <button class="tab-btn" data-tab="waivers">Waivers</button>
       <button class="tab-btn" data-tab="trade">Trade</button>
+      <button class="tab-btn" data-tab="stats">Stats</button>
     </nav>
 
     <div id="statusLine" class="status-line"></div>
@@ -110,6 +111,13 @@
       <div id="tradeResult" class="trade-result"></div>
     </section>
 
+    <section id="statsTab" class="tab-panel hidden">
+      <h2 class="section-heading">Season performance</h2>
+      <div id="statsSummary" class="stats-summary"></div>
+      <h2 class="section-heading">Week by week</h2>
+      <div id="statsWeekly" class="stats-weekly"></div>
+    </section>
+
     <section id="infoTab" class="tab-panel hidden">
       <h2 class="section-heading">What the badges mean</h2>
       <p class="muted">Every callout you'll see next to a player, explained -- and what's actually behind the number.</p>
@@ -152,6 +160,11 @@
       </div>
 
       <div class="info-section">
+        <h3>Stats tab</h3>
+        <p>Once Sleeper has posted real stats for a week (usually by Thursday night's game), it shows up here: your actual score for that week straight from Sleeper's own scoring, next to what your actual starting lineup was projected to score going in. The season cards above the week-by-week table roll all of that up -- record, points per week, best/worst week, and how often you've outscored your own projection.</p>
+      </div>
+
+      <div class="info-section">
         <h3>Injury Watch tags</h3>
         <p class="info-example"><span class="injury-status-badge">Questionable (Knee)</span></p>
         <p>The status and body part come straight from Sleeper's own injury report. "Bench option" and "Waiver option" are this app's suggested replacement if that player can't go -- the bench one accounts for how removing them reshuffles your other flex slots, not just a naive same-position swap; the waiver one is the best free agent at their position. Either can be missing if there's genuinely nothing better available.</p>
@@ -176,13 +189,14 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=7"></script>
-<script src="player-id-crosswalk.js?v=7"></script>
-<script src="espn-api.js?v=7"></script>
-<script src="cbs-api.js?v=7"></script>
-<script src="claude-assist.js?v=7"></script>
-<script src="scoring.js?v=7"></script>
-<script src="optimizer.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="sleeper-api.js?v=8"></script>
+<script src="player-id-crosswalk.js?v=8"></script>
+<script src="espn-api.js?v=8"></script>
+<script src="cbs-api.js?v=8"></script>
+<script src="claude-assist.js?v=8"></script>
+<script src="scoring.js?v=8"></script>
+<script src="optimizer.js?v=8"></script>
+<script src="stats.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

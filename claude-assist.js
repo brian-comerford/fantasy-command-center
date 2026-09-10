@@ -94,6 +94,16 @@ const ClaudeAssist = (() => {
       `short, concrete take (3-5 sentences) on whether this pickup looks right this week.`;
   }
 
+  function buildTradeQuestion({ league, week, season, give, receive }) {
+    const nameList = (players) => players.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ');
+    return `I play fantasy football in a league called "${league}" (${season} season, ` +
+      `Week ${week}). I'm considering a trade where I'd send ${nameList(give)} and ` +
+      `receive ${nameList(receive)} in return. Search for the latest news on everyone ` +
+      `involved -- injury status, role/snap-count trends, rest-of-season schedule ` +
+      `strength, and any beat-reporter or trade-value buzz -- and give me a short, ` +
+      `concrete take (3-5 sentences) on whether this trade looks right for me.`;
+  }
+
   function buildInjuryQuestion({ league, week, season, player, injuryLabel, benchReplacement, waiverReplacement }) {
     const replacementParts = [];
     if (benchReplacement) replacementParts.push(`benching them for ${benchReplacement.name} (${benchReplacement.pos} ${benchReplacement.team}) from my own roster`);
@@ -116,5 +126,5 @@ const ClaudeAssist = (() => {
       `and give me a short, concrete take (3-5 sentences) on ${decisionPart}.${replacementPart}`;
   }
 
-  return { ask, buildSwapQuestion, buildWaiverQuestion, buildInjuryQuestion, cacheKeyFor, getCached, setCached };
+  return { ask, buildSwapQuestion, buildWaiverQuestion, buildTradeQuestion, buildInjuryQuestion, cacheKeyFor, getCached, setCached };
 })();
