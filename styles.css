@@ -588,6 +588,48 @@ button, input, select {
   padding: 10px;
 }
 
+/* ---------- Info tab ---------- */
+
+.info-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 14px;
+}
+
+.info-section h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 10px;
+  color: var(--gold);
+}
+
+.info-section p {
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 10px;
+}
+
+.info-section p:last-child { margin-bottom: 0; }
+
+.info-section ul {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.info-section li { margin-bottom: 4px; }
+
+.info-example {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px !important;
+}
+
 /* ---------- Loading overlay ---------- */
 
 .loading-overlay {

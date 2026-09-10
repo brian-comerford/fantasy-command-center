@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 
@@ -64,6 +64,7 @@
       <button class="tab-btn active" data-tab="lineup">Lineup</button>
       <button class="tab-btn" data-tab="waivers">Waivers</button>
       <button class="tab-btn" data-tab="trade">Trade</button>
+      <button class="tab-btn" data-tab="info">Info</button>
     </nav>
 
     <div id="statusLine" class="status-line"></div>
@@ -107,6 +108,53 @@
         </div>
       </div>
       <div id="tradeResult" class="trade-result"></div>
+    </section>
+
+    <section id="infoTab" class="tab-panel hidden">
+      <h2 class="section-heading">What the badges mean</h2>
+      <p class="muted">Every callout you'll see next to a player, explained -- and what's actually behind the number.</p>
+
+      <div class="info-section">
+        <h3>Strong / Mixed / Split</h3>
+        <p class="info-example">
+          <span class="agreement-badge level-strong">Strong</span>
+          <span class="agreement-badge level-moderate">Mixed</span>
+          <span class="agreement-badge level-split">Split</span>
+        </p>
+        <p>Only appears when you've set up the optional ESPN blending (see the README's Worker section). Sleeper and ESPN each publish their own independent weekly projection for a player; this app averages the two into the point value you see, and this badge shows how close they actually were to each other going into that average:</p>
+        <ul>
+          <li><strong>Strong</strong> -- the two projections are within 15% of their average. Both sources basically agree; treat the number with confidence.</li>
+          <li><strong>Mixed</strong> -- 15-35% apart. Real disagreement between the sources -- worth a second look before trusting the average blindly.</li>
+          <li><strong>Split</strong> -- more than 35% apart. The two sources see this player very differently. The blended number is still the best single estimate available, but it's papering over a real disagreement.</li>
+        </ul>
+        <p class="muted small">Hover the badge to see each source's exact number.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>CBS agrees / CBS disagrees</h3>
+        <p class="info-example">
+          <span class="cbs-tag agree">CBS agrees</span>
+          <span class="cbs-tag disagree">CBS disagrees</span>
+        </p>
+        <p>CBS Sports publishes its own consensus rank per position -- always on, no setup needed. It's a rank (e.g. "WR #14"), not a point value, so it's never blended into the projection itself -- it's a separate, third-opinion check. This tag compares CBS's rank for the two players in a suggested swap or waiver pickup, only when CBS has ranked both at the same position: <strong>agrees</strong> means CBS's board also favors the suggested player; <strong>disagrees</strong> means CBS would actually keep the other one.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>Trending</h3>
+        <p class="info-example"><span class="trending-badge">Trending</span></p>
+        <p>This free agent is among the players most-added across all of Sleeper (not just your leagues) recently. It's a "the crowd is moving on this player" signal, separate from and not a substitute for the projection numbers next to it.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>"Last wk X · Season avg Y (N gms)"</h3>
+        <p>Actual scoring history, shown under the projection for comparison -- not a projection itself. Updates per player as soon as their own game concludes (a Thursday game shows up by Friday, without waiting on the rest of the week). The season average only counts weeks that player actually played: a bye week or a game missed to injury doesn't drag it down with a false zero, the way naively averaging every week would. Early in a new season, before a given player has played their first game yet, this falls back to last season's numbers instead -- labeled with the year (e.g. "2025 last game 12.4") so it's never mistaken for a current-season number.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>Injury Watch tags</h3>
+        <p class="info-example"><span class="injury-status-badge">Questionable (Knee)</span></p>
+        <p>The status and body part come straight from Sleeper's own injury report. "Bench option" and "Waiver option" are this app's suggested replacement if that player can't go -- the bench one accounts for how removing them reshuffles your other flex slots, not just a naive same-position swap; the waiver one is the best free agent at their position. Either can be missing if there's genuinely nothing better available.</p>
+      </div>
     </section>
 
   </section>
