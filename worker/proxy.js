@@ -127,6 +127,11 @@ async function handleClaudeAssist(request, env) {
       model: 'claude-opus-5',
       max_tokens: 1024,
       output_config: { effort: 'low' }, // quick interactive lookup, not deep reasoning
+      system: 'Answer in plain prose only: flowing sentences, no markdown ' +
+        '(no **bold**, no headers, no bullet or numbered lists, no asterisks ' +
+        'at all). This is displayed as plain text on a small card, not ' +
+        'rendered as markdown, so any formatting characters would show up ' +
+        'literally.',
       tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
       messages: [{ role: 'user', content: question }],
     }),
@@ -141,10 +146,17 @@ async function handleClaudeAssist(request, env) {
   }
 
   const data = await anthropicRes.json();
+  // Web search splits the answer into several small text blocks around
+  // each citation point -- they're fragments of one continuous paragraph,
+  // not separate paragraphs, so they're joined directly (no separator)
+  // rather than with blank lines between them. Whitespace is then
+  // normalized in case a fragment boundary left a run-together word or a
+  // doubled space.
   const text = (data.content || [])
     .filter(block => block.type === 'text')
     .map(block => block.text)
-    .join('\n\n')
+    .join('')
+    .replace(/\s+/g, ' ')
     .trim();
 
   return new Response(JSON.stringify({ text: text || "Claude didn't return a text answer." }), {
