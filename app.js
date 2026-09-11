@@ -247,38 +247,52 @@ async function loadLeagueData(leagueId) {
     }
   }
 
-  // ESPN projections are an optional second opinion (see espn-api.js) --
-  // only pulled in when the projection source is live projections (not the
-  // recent-average fallback, which isn't really comparable) and only for
-  // players ESPN actually projects (QB/RB/WR/TE).
+  // ESPN and FFToday projections are optional second/third opinions (see
+  // espn-api.js and fftoday-api.js) -- only pulled in when the projection
+  // source is live projections (not the recent-average fallback, which
+  // isn't really comparable) and only for players each of them actually
+  // projects (QB/RB/WR/TE for both -- K/DEF scoring differs too much
+  // between providers, or FFToday just doesn't have a real projection for
+  // them at all, to translate meaningfully).
   //
   // `valuation` -- the number this entire app ranks, sorts, and totals
   // off -- stays Sleeper's own projection always, never the blended
   // average. These are Sleeper leagues, so Sleeper's own number is the
-  // one that actually determines real scoring; ESPN's opinion is useful
-  // context, not a replacement. The blended average is still computed and
-  // kept in `blendedValuation`, shown as a small secondary note next to
-  // the main number wherever the agreement badge already appears --
-  // informational only, nothing here reads it for a decision.
+  // one that actually determines real scoring; the other sources' opinions
+  // are useful context, not a replacement. The blended average is still
+  // computed across however many sources actually have data for a given
+  // player, kept in `blendedValuation`, shown as a small secondary note
+  // next to the main number wherever the agreement badge already appears
+  // -- informational only, nothing here reads it for a decision.
   let valuation = sleeperValuation;
   let blendedValuation = {};
   let agreement = {};
   let usedEspn = false;
+  let usedFFToday = false;
   if (projSource === 'projection' && state.workerProxyUrl) {
+    const blendSources = [{ name: 'Sleeper', points: sleeperValuation }];
     try {
       const espnStats = await EspnAPI.getWeeklyProjections(state.workerProxyUrl, season, week);
       if (espnStats && Object.keys(espnStats).length) {
-        const espnValuation = Scoring.projectedPointsForLeague(espnStats, league.scoring_settings || {});
-        const blend = Scoring.blendValuations([
-          { name: 'Sleeper', points: sleeperValuation },
-          { name: 'ESPN', points: espnValuation },
-        ]);
-        blendedValuation = blend.blended;
-        agreement = blend.agreement;
+        blendSources.push({ name: 'ESPN', points: Scoring.projectedPointsForLeague(espnStats, league.scoring_settings || {}) });
         usedEspn = true;
       }
     } catch (e) {
-      console.warn('ESPN proxy unavailable, continuing on Sleeper alone.', e);
+      console.warn('ESPN proxy unavailable, continuing without it.', e);
+    }
+    try {
+      const fftodayStats = await FFTodayAPI.getWeeklyProjections(state.workerProxyUrl, season, week, playerMeta);
+      if (fftodayStats && Object.keys(fftodayStats).length) {
+        blendSources.push({ name: 'FFToday', points: Scoring.projectedPointsForLeague(fftodayStats, league.scoring_settings || {}) });
+        usedFFToday = true;
+      }
+    } catch (e) {
+      console.warn('FFToday proxy unavailable, continuing without it.', e);
+    }
+    if (blendSources.length > 1) {
+      const blend = Scoring.blendValuations(blendSources);
+      blendedValuation = blend.blended;
+      agreement = blend.agreement;
     }
   }
 
@@ -431,11 +445,12 @@ async function loadLeagueData(leagueId) {
   };
 
   const cbsNote = usedCbs ? ', with CBS\'s consensus rank as a tiebreaker' : '';
+  const blendedSourceNames = [usedEspn ? 'ESPN' : null, usedFFToday ? 'FFToday' : null].filter(Boolean);
   el('weekReadout').textContent = `${league.season} · Week ${week}`;
   el('statusLine').textContent = projSource !== 'projection'
     ? `Live projections weren't available this time, so rankings use each player's actual scoring average over their last 3 games instead.`
-    : usedEspn
-      ? `Using Sleeper's own projections${cbsNote}, scored to ${league.name}'s own settings -- with ESPN's blended average shown for reference next to Strong/Mixed/Split.`
+    : blendedSourceNames.length
+      ? `Using Sleeper's own projections${cbsNote}, scored to ${league.name}'s own settings -- with ${blendedSourceNames.join(' + ')}'s blended average shown for reference next to Strong/Mixed/Split.`
       : `Using live weekly projections${cbsNote}, scored to ${league.name}'s own settings.`;
   lastRefreshedAt = Date.now();
 }

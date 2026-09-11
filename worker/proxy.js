@@ -1,17 +1,20 @@
-/* Cloudflare Worker: powers two optional Command Center features.
+/* Cloudflare Worker: powers three optional Command Center features.
  *
  * 1. /espn-proxy    -- CORS proxy for ESPN's public fantasy projections
  *    endpoint (see handleEspnProxy below for why it's needed).
- * 2. /claude-assist -- calls the Anthropic API (with live web search) to
+ * 2. /fftoday-proxy -- CORS proxy for FFToday's public weekly projections
+ *    pages (see handleFFTodayProxy below).
+ * 3. /claude-assist -- calls the Anthropic API (with live web search) to
  *    research a specific swap/waiver suggestion. Requires an
  *    ANTHROPIC_API_KEY secret on this Worker -- Cloudflare dashboard ->
  *    Workers & Pages -> your worker -> Settings -> Variables and Secrets ->
  *    Add -> type "Secret", name it exactly ANTHROPIC_API_KEY.
  *
- * Both routes are entirely optional -- the app works fine with no Worker
- * deployed at all, just without ESPN blending or the "Ask Claude" button.
- * If you only want one of the two, just don't set up the other's
- * prerequisite (leave ANTHROPIC_API_KEY unset to disable /claude-assist).
+ * All three routes are entirely optional -- the app works fine with no
+ * Worker deployed at all, just without ESPN/FFToday blending or the
+ * "Ask Claude" button. If you only want some of these, just don't set up
+ * the others' prerequisites (leave ANTHROPIC_API_KEY unset to disable
+ * /claude-assist).
  *
  * WORKER_VERSION below is bumped by hand on every edit to this file. Since
  * editing/committing it locally does NOT change what's actually running on
@@ -20,7 +23,7 @@
  * really deployed, so a stale-code guess doesn't have to be one.
  */
 
-const WORKER_VERSION = 4;
+const WORKER_VERSION = 5;
 
 export default {
   async fetch(request, env) {
@@ -34,7 +37,7 @@ export default {
       return new Response(JSON.stringify({
         ok: true,
         worker_version: WORKER_VERSION,
-        routes: ['/espn-proxy', '/claude-assist'],
+        routes: ['/espn-proxy', '/fftoday-proxy', '/claude-assist'],
         claude_assist_configured: Boolean(env.ANTHROPIC_API_KEY),
       }, null, 2), {
         headers: { ...corsHeaders(), 'content-type': 'application/json' },
@@ -44,10 +47,13 @@ export default {
     if (url.pathname === '/espn-proxy' || url.pathname === '/espn-proxy/') {
       return handleEspnProxy(url);
     }
+    if (url.pathname === '/fftoday-proxy' || url.pathname === '/fftoday-proxy/') {
+      return handleFFTodayProxy(url);
+    }
     if (url.pathname === '/claude-assist' || url.pathname === '/claude-assist/') {
       return handleClaudeAssist(request, env);
     }
-    return new Response('Not found. Try /espn-proxy or /claude-assist.', {
+    return new Response('Not found. Try /espn-proxy, /fftoday-proxy, or /claude-assist.', {
       status: 404,
       headers: corsHeaders(),
     });
@@ -94,6 +100,46 @@ async function handleEspnProxy(url) {
   // Stream the body straight through -- no buffering, no JSON.parse here.
   return new Response(espnResponse.body, {
     status: espnResponse.status,
+    headers,
+  });
+}
+
+// ---------------- FFToday proxy ----------------
+//
+// FFToday's weekly projections pages work fine over plain HTTPS but send no
+// CORS headers, so a browser can't read them directly. This route just adds
+// those headers, same trick as the ESPN proxy above -- but unlike ESPN,
+// FFToday has no JSON API at all, only server-rendered HTML tables, so this
+// streams that HTML straight through and the browser parses the table
+// itself (see fftoday-api.js) rather than trying to parse HTML inside a
+// Worker, which has no DOM to do it with.
+//
+// posId picks which position's page to fetch (QB=10, RB=20, WR=30, TE=40 --
+// see fftoday-api.js for where those map from). Kicker and defense
+// deliberately aren't proxied here: FFToday's kicker projections aren't
+// distance-bucketed and it has no real defense projections at all (rank
+// only), so both stay Sleeper-only same as ESPN blending already does.
+async function handleFFTodayProxy(url) {
+  const season = url.searchParams.get('season');
+  const week = url.searchParams.get('week');
+  const posId = url.searchParams.get('posId');
+  if (!season || !week || !posId) {
+    return new Response('Missing required query params: season, week, posId', {
+      status: 400,
+      headers: corsHeaders(),
+    });
+  }
+
+  const fftodayUrl = `https://www.fftoday.com/rankings/playerwkproj.php?Season=${encodeURIComponent(season)}&GameWeek=${encodeURIComponent(week)}&PosID=${encodeURIComponent(posId)}&LeagueID=`;
+
+  const fftodayResponse = await fetch(fftodayUrl);
+
+  const headers = new Headers(fftodayResponse.headers);
+  Object.entries(corsHeaders()).forEach(([k, v]) => headers.set(k, v));
+  headers.set('Cache-Control', 'public, max-age=1800');
+
+  return new Response(fftodayResponse.body, {
+    status: fftodayResponse.status,
     headers,
   });
 }

@@ -42,10 +42,10 @@ their last few games) -- both computed from real box scores, no setup
 needed. See
 [Matchup and usage-trend badges](#matchup-and-usage-trend-badges) below.
 
-Optionally, it can also: pull in a second, independent projection source
-(ESPN) as a reference point and flag how much it agrees with Sleeper's
-own number; and put an "Ask Claude" research button on each swap/waiver
-suggestion and on the trade analyzer. See
+Optionally, it can also: pull in second/third, independent projection
+sources (ESPN and FFToday) as reference points and flag how much they
+agree with Sleeper's own number; and put an "Ask Claude" research button
+on each swap/waiver suggestion and on the trade analyzer. See
 [Optional: a Cloudflare Worker unlocks two more features](#optional-a-cloudflare-worker-unlocks-two-more-features)
 below.
 
@@ -336,17 +336,18 @@ before if you skip this section entirely. They share one small proxy
    (optional)" and save. This alone turns on ESPN blending (below); Ask
    Claude also needs the API key step under its own heading.
 
-### Blending in ESPN's projections
+### Blending in ESPN and FFToday's projections
 
 The app always ranks, sorts, and totals players using Sleeper's own
 projections — since these are Sleeper leagues, that's the number that
 actually determines real scoring, so it's never averaged away with
-another source. This setting pulls in ESPN's independent projection too,
-purely as a second opinion: swap/waiver suggestions get a badge showing
-how much the two sources agree (**Strong** / **Mixed** / **Split**), plus
-a small, de-emphasized "(blend N)" next to the projection showing what
-the Sleeper/ESPN average would have been — informational only, never
-what the app itself decides anything from.
+another source. This setting pulls in ESPN's and FFToday's independent
+projections too, purely as second/third opinions: swap/waiver suggestions
+get a badge showing how much the sources that have data for a given
+player agree with each other (**Strong** / **Mixed** / **Split**), plus a
+small, de-emphasized "(blend N)" next to the projection showing what
+their average would have been — informational only, never what the app
+itself decides anything from.
 
 The Lineup tab's "Your current lineup" and "This week's opponent"
 grids (and their totals) can also be switched to show the blend
@@ -358,19 +359,37 @@ which mode the toggle is in, and a player who's already played is shown
 by their real score either way — only the projection for someone who
 hasn't played yet changes with the toggle.
 
-This only covers QB/RB/WR/TE — kicker and defense scoring differ enough
-between the two providers (distance-bucketed field goals, points-allowed
+Both only cover QB/RB/WR/TE. ESPN's kicker and defense scoring differs
+enough from Sleeper's (distance-bucketed field goals, points-allowed
 tiers) that translating one into the other would be more misleading than
-useful, so K/DEF valuations always stay Sleeper-only regardless of this
-setting.
+useful; FFToday's kicker projection isn't distance-bucketed either, and
+it has no real defense projections at all (a rank only, no point value,
+so there's nothing to blend). K/DEF valuations always stay Sleeper-only
+regardless of this setting.
 
-The proxy itself does no filtering or parsing — ESPN's endpoint ignores
-every documented filter param and always returns its full player database
+The ESPN proxy does no filtering or parsing — its endpoint ignores every
+documented filter param and always returns its full player database
 (30-40MB), which would blow past a free Worker's per-request CPU budget to
 parse server-side. Instead the proxy just streams that response straight
 through with CORS headers added, and the browser does the parsing/filtering
 client-side (where a payload that size is trivial), caching the result the
 same way it already caches Sleeper's player list.
+
+FFToday has no JSON API at all — just server-rendered HTML tables, one
+page per position (QB/RB/WR/TE). The proxy streams each page through the
+same way; the browser parses the actual `<table>` out of it and reads off
+each player's raw stat line (completions, yards, TDs, etc.), which gets
+scored to your league's own settings exactly like Sleeper's and ESPN's
+numbers, rather than trusting FFToday's own displayed point total (which
+uses FFToday's own scoring assumptions, not necessarily yours). FFToday
+has no player-ID system to match against Sleeper's, so players are
+matched by name + team instead — normalized on both sides to absorb
+punctuation, accents, and suffixes (Jr./III/etc.), but inherently a
+little fuzzier than ESPN's ID-based match; a player who genuinely doesn't
+match just doesn't get an FFToday number rather than a wrong one. Since
+it's screen-scraped rather than a documented API, it's also the more
+fragile of the two sources — a redesign on FFToday's end could break it
+until noticed and fixed, unlike ESPN's stable JSON shape.
 
 ### "Ask Claude" — on-demand research on a suggestion
 
@@ -427,6 +446,7 @@ styles.css                design system
 sleeper-api.js            all Sleeper API calls + caching
 player-id-crosswalk.js    maps Sleeper/ESPN/CBS IDs for the same players
 espn-api.js               optional ESPN projections (see above)
+fftoday-api.js            optional FFToday projections (see above)
 cbs-api.js                CBS consensus rank, used as a tiebreaker (see above)
 claude-assist.js          optional "Ask Claude" research button (see above)
 scoring.js                raw stats -> fantasy points, per league's own rules; blends multiple sources
