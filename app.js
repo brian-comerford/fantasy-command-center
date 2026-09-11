@@ -462,28 +462,45 @@ function recentFormLine(playerId, data) {
   return `<span class="recent-form">${parts.join(' · ')}</span>`;
 }
 
-// swap. CBS only gives a rank, not a point value, so it never affects the
-// numbers above -- it's shown purely as "does a third source agree".
-function confidenceBadges(incomingId, outgoingId, data) {
-  let html = '';
+// Strong/Mixed/Split for one specific player -- how closely Sleeper and
+// ESPN's own numbers agree on THEM, independent of who they're being
+// compared against. Not a head-to-head signal (that's the CBS tag below),
+// so it's equally valid to show on either side of a swap/waiver
+// comparison, each with its own tooltip of that player's own source
+// numbers. '' if ESPN blending isn't on, or this player only has one
+// source (e.g. K/DEF, which ESPN blending skips entirely).
+function agreementBadge(playerId, data) {
+  const info = data.agreement && data.agreement[playerId];
+  if (!info || info.level === 'single-source') return '';
+  const label = info.level === 'strong' ? 'Strong' : info.level === 'moderate' ? 'Mixed' : 'Split';
+  const tooltip = info.sources.map(s => `${s.name}: ${s.pts.toFixed(1)}`).join(' · ');
+  return `<span class="agreement-badge level-${info.level}" title="${tooltip}">${label}</span>`;
+}
 
-  const info = data.agreement && data.agreement[incomingId];
-  if (info && info.level !== 'single-source') {
-    const label = info.level === 'strong' ? 'Strong' : info.level === 'moderate' ? 'Mixed' : 'Split';
-    const tooltip = info.sources.map(s => `${s.name}: ${s.pts.toFixed(1)}`).join(' · ');
-    html += `<span class="agreement-badge level-${info.level}" title="${tooltip}">${label}</span>`;
-  }
-
+// CBS's consensus rank as a third-opinion tiebreaker between two specific
+// players -- unlike the agreement badge above, this genuinely is a
+// head-to-head comparison, so it's only shown once, attached to the
+// incoming/recommended side. CBS only gives a rank, not a point value, so
+// it never affects the numbers above -- it's shown purely as "does a
+// third source agree".
+function cbsAgreementTag(incomingId, outgoingId, data) {
   const cbs = data.cbsRanks || {};
   const incomingRank = cbs[incomingId];
   const outgoingRank = outgoingId ? cbs[outgoingId] : null;
-  if (incomingRank && outgoingRank && incomingRank.pos === outgoingRank.pos) {
-    const agrees = incomingRank.rank < outgoingRank.rank;
-    const tooltip = `CBS ${incomingRank.pos} rank: #${incomingRank.rank} vs #${outgoingRank.rank}`;
-    html += ` <span class="cbs-tag ${agrees ? 'agree' : 'disagree'}" title="${tooltip}">${agrees ? 'CBS agrees' : 'CBS disagrees'}</span>`;
-  }
+  if (!incomingRank || !outgoingRank || incomingRank.pos !== outgoingRank.pos) return '';
+  const agrees = incomingRank.rank < outgoingRank.rank;
+  const tooltip = `CBS ${incomingRank.pos} rank: #${incomingRank.rank} vs #${outgoingRank.rank}`;
+  return ` <span class="cbs-tag ${agrees ? 'agree' : 'disagree'}" title="${tooltip}">${agrees ? 'CBS agrees' : 'CBS disagrees'}</span>`;
+}
 
-  return html;
+// The incoming/recommended player's full badge set: their own Strong/
+// Mixed/Split plus the head-to-head CBS tag against whoever they'd
+// replace. The outgoing/current player only gets their own
+// agreementBadge (called directly at each call site) since the CBS tag
+// isn't meaningful attached to that side too -- it'd just repeat the same
+// comparison.
+function confidenceBadges(incomingId, outgoingId, data) {
+  return agreementBadge(incomingId, data) + cbsAgreementTag(incomingId, outgoingId, data);
 }
 
 // "Good matchup" / "Tough matchup" against this player's actual NFL
@@ -773,7 +790,7 @@ function renderLineupTab(data) {
       card.innerHTML = `
         <span class="swap-slot">${s.slot}</span>
         <div class="player-chip">
-          <span class="name">${s.starterPlayer ? s.starterPlayer.name : 'Empty slot'} ${s.starterPlayer ? `${matchupBadge(s.starterPlayer.id, data)} ${usageTrendBadge(s.starterPlayer.id, data)}` : ''}</span>
+          <span class="name">${s.starterPlayer ? s.starterPlayer.name : 'Empty slot'} ${s.starterPlayer ? `${agreementBadge(s.starterPlayer.id, data)} ${matchupBadge(s.starterPlayer.id, data)} ${usageTrendBadge(s.starterPlayer.id, data)}` : ''}</span>
           <span class="meta">${s.starterPlayer ? `${s.starterPlayer.pos} ${s.starterPlayer.team} · ${s.starterPlayer.pts.toFixed(1)} pts` : ''}</span>
           ${s.starterPlayer ? recentFormLine(s.starterPlayer.id, data) : ''}
         </div>
@@ -1206,7 +1223,7 @@ function renderWaiversTab(data) {
       </div>
       <span class="swap-arrow">could replace</span>
       <div class="player-chip">
-        <span class="name">${s.considerDropping.name} ${matchupBadge(s.considerDropping.id, data)} ${usageTrendBadge(s.considerDropping.id, data)}</span>
+        <span class="name">${s.considerDropping.name} ${agreementBadge(s.considerDropping.id, data)} ${matchupBadge(s.considerDropping.id, data)} ${usageTrendBadge(s.considerDropping.id, data)}</span>
         <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts</span>
         ${recentFormLine(s.considerDropping.id, data)}
       </div>
