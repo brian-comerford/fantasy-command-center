@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=18">
+<link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=18" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=19" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -52,7 +52,7 @@
         <span>Worker proxy URL (optional)</span>
         <input type="text" id="workerProxyInput" placeholder="e.g. https://your-worker.your-name.workers.dev">
       </label>
-      <p class="muted small">Powers two optional features: blending ESPN's projections in alongside Sleeper's, and an "Ask Claude" research button on swap/waiver suggestions. Requires a small free Cloudflare Worker -- see worker/proxy.js in the repo. Leave blank to skip both.</p>
+      <p class="muted small">Powers two optional features: pulling in ESPN's projections as a second opinion alongside Sleeper's, and an "Ask Claude" research button on swap/waiver suggestions. Requires a small free Cloudflare Worker -- see worker/proxy.js in the repo. Leave blank to skip both.</p>
 
       <button id="saveSetupBtn" class="primary-btn hidden">Load Command Center</button>
     </div>
@@ -144,13 +144,13 @@
           <span class="agreement-badge level-moderate">Mixed</span>
           <span class="agreement-badge level-split">Split</span>
         </p>
-        <p>Only appears when you've set up the optional ESPN blending (see the README's Worker section). Sleeper and ESPN each publish their own independent weekly projection for a player; this app averages the two into the point value you see, and this badge shows how close they actually were to each other going into that average:</p>
+        <p>Only appears when you've set up the optional ESPN blending (see the README's Worker section). Sleeper and ESPN each publish their own independent weekly projection for a player; every number this app actually ranks, sorts, and totals with is Sleeper's own projection, since these are Sleeper leagues and that's the number that determines real scoring. ESPN's opinion doesn't get averaged in -- it's just a second opinion, and this badge shows how much it actually agrees with Sleeper:</p>
         <ul>
           <li><strong>Strong</strong> -- the two projections are within 15% of their average. Both sources basically agree; treat the number with confidence.</li>
-          <li><strong>Mixed</strong> -- 15-35% apart. Real disagreement between the sources -- worth a second look before trusting the average blindly.</li>
-          <li><strong>Split</strong> -- more than 35% apart. The two sources see this player very differently. The blended number is still the best single estimate available, but it's papering over a real disagreement.</li>
+          <li><strong>Mixed</strong> -- 15-35% apart. Real disagreement between the sources -- worth a second look.</li>
+          <li><strong>Split</strong> -- more than 35% apart. The two sources see this player very differently.</li>
         </ul>
-        <p>It's a per-player signal, not a head-to-head one -- so on a swap or waiver comparison, both players can show their own badge (each with its own Sleeper/ESPN tooltip), not just the one being recommended. It's absent entirely for a K or DEF, since ESPN blending skips those positions.</p>
+        <p>A small, muted "(blend N)" next to the projection is the ESPN/Sleeper average for reference -- purely informational, never what the app itself decides anything from. It's a per-player signal, not a head-to-head one -- so on a swap or waiver comparison, both players can show their own badge and blend note (each with its own tooltip), not just the one being recommended. Both are absent entirely for a K or DEF, since ESPN blending skips those positions.</p>
         <p class="muted small">Hover (or tap, on mobile) the badge to see each source's exact number.</p>
       </div>
 
@@ -238,15 +238,15 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=18"></script>
-<script src="player-id-crosswalk.js?v=18"></script>
-<script src="espn-api.js?v=18"></script>
-<script src="cbs-api.js?v=18"></script>
-<script src="claude-assist.js?v=18"></script>
-<script src="scoring.js?v=18"></script>
-<script src="optimizer.js?v=18"></script>
-<script src="stats.js?v=18"></script>
-<script src="trends.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="sleeper-api.js?v=19"></script>
+<script src="player-id-crosswalk.js?v=19"></script>
+<script src="espn-api.js?v=19"></script>
+<script src="cbs-api.js?v=19"></script>
+<script src="claude-assist.js?v=19"></script>
+<script src="scoring.js?v=19"></script>
+<script src="optimizer.js?v=19"></script>
+<script src="stats.js?v=19"></script>
+<script src="trends.js?v=19"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

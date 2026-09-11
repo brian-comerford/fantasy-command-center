@@ -357,6 +357,13 @@ button, input, select {
   color: var(--chalk-dim);
 }
 
+.blend-note {
+  font-size: 10px;
+  font-style: italic;
+  color: var(--chalk-dim);
+  opacity: 0.75;
+}
+
 .swap-gain {
   margin-left: auto;
   color: var(--turf-bright);

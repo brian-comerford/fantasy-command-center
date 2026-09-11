@@ -238,10 +238,20 @@ async function loadLeagueData(leagueId) {
   }
 
   // ESPN projections are an optional second opinion (see espn-api.js) --
-  // only blended in when the projection source is live projections (not the
+  // only pulled in when the projection source is live projections (not the
   // recent-average fallback, which isn't really comparable) and only for
   // players ESPN actually projects (QB/RB/WR/TE).
+  //
+  // `valuation` -- the number this entire app ranks, sorts, and totals
+  // off -- stays Sleeper's own projection always, never the blended
+  // average. These are Sleeper leagues, so Sleeper's own number is the
+  // one that actually determines real scoring; ESPN's opinion is useful
+  // context, not a replacement. The blended average is still computed and
+  // kept in `blendedValuation`, shown as a small secondary note next to
+  // the main number wherever the agreement badge already appears --
+  // informational only, nothing here reads it for a decision.
   let valuation = sleeperValuation;
+  let blendedValuation = {};
   let agreement = {};
   let usedEspn = false;
   if (projSource === 'projection' && state.workerProxyUrl) {
@@ -253,7 +263,7 @@ async function loadLeagueData(leagueId) {
           { name: 'Sleeper', points: sleeperValuation },
           { name: 'ESPN', points: espnValuation },
         ]);
-        valuation = blend.blended;
+        blendedValuation = blend.blended;
         agreement = blend.agreement;
         usedEspn = true;
       }
@@ -403,7 +413,7 @@ async function loadLeagueData(leagueId) {
   const usedCbs = Object.keys(cbsRanks).length > 0;
 
   state.leagueData[leagueId] = {
-    league, rosters, users, myRoster, playerMeta, valuation, agreement, cbsRanks,
+    league, rosters, users, myRoster, playerMeta, valuation, blendedValuation, agreement, cbsRanks,
     lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds, opponent,
@@ -415,7 +425,7 @@ async function loadLeagueData(leagueId) {
   el('statusLine').textContent = projSource !== 'projection'
     ? `Live projections weren't available this time, so rankings use each player's actual scoring average over their last 3 games instead.`
     : usedEspn
-      ? `Blending Sleeper + ESPN projections${cbsNote}, scored to ${league.name}'s own settings.`
+      ? `Using Sleeper's own projections${cbsNote}, scored to ${league.name}'s own settings -- with ESPN's blended average shown for reference next to Strong/Mixed/Split.`
       : `Using live weekly projections${cbsNote}, scored to ${league.name}'s own settings.`;
   lastRefreshedAt = Date.now();
 }
@@ -501,6 +511,20 @@ function cbsAgreementTag(incomingId, outgoingId, data) {
 // comparison.
 function confidenceBadges(incomingId, outgoingId, data) {
   return agreementBadge(incomingId, data) + cbsAgreementTag(incomingId, outgoingId, data);
+}
+
+// Small, de-emphasized note giving the ESPN/Sleeper blended average next
+// to the main projection, wherever the agreement badge already applies.
+// Purely informational -- the main pts shown everywhere in this app is
+// always Sleeper's own projection (see loadLeagueData), since these are
+// Sleeper leagues and that's the number that actually determines real
+// scoring; this is just a reference point for how ESPN's own number
+// would have shifted the average. '' if ESPN blending isn't on for this
+// player.
+function blendNote(playerId, data) {
+  const blended = data.blendedValuation && data.blendedValuation[playerId];
+  if (typeof blended !== 'number') return '';
+  return `<span class="blend-note">(blend ${blended.toFixed(1)})</span>`;
 }
 
 // "Good matchup" / "Tough matchup" against this player's actual NFL
@@ -791,13 +815,13 @@ function renderLineupTab(data) {
         <span class="swap-slot">${s.slot}</span>
         <div class="player-chip">
           <span class="name">${s.starterPlayer ? s.starterPlayer.name : 'Empty slot'} ${s.starterPlayer ? `${agreementBadge(s.starterPlayer.id, data)} ${matchupBadge(s.starterPlayer.id, data)} ${usageTrendBadge(s.starterPlayer.id, data)}` : ''}</span>
-          <span class="meta">${s.starterPlayer ? `${s.starterPlayer.pos} ${s.starterPlayer.team} · ${s.starterPlayer.pts.toFixed(1)} pts` : ''}</span>
+          <span class="meta">${s.starterPlayer ? `${s.starterPlayer.pos} ${s.starterPlayer.team} · ${s.starterPlayer.pts.toFixed(1)} pts ${blendNote(s.starterPlayer.id, data)}` : ''}</span>
           ${s.starterPlayer ? recentFormLine(s.starterPlayer.id, data) : ''}
         </div>
         <span class="swap-arrow">→</span>
         <div class="player-chip">
           <span class="name">${s.benchPlayer.name} ${confidenceBadges(s.benchPlayer.id, s.starterPlayer ? s.starterPlayer.id : null, data)} ${matchupBadge(s.benchPlayer.id, data)} ${usageTrendBadge(s.benchPlayer.id, data)}</span>
-          <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts</span>
+          <span class="meta">${s.benchPlayer.pos} ${s.benchPlayer.team} · ${s.benchPlayer.pts.toFixed(1)} pts ${blendNote(s.benchPlayer.id, data)}</span>
           ${recentFormLine(s.benchPlayer.id, data)}
         </div>
         <span class="swap-gain">+${s.gain.toFixed(1)}</span>
@@ -1218,13 +1242,13 @@ function renderWaiversTab(data) {
     card.innerHTML = `
       <div class="player-chip">
         <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${confidenceBadges(s.add.id, s.considerDropping.id, data)} ${matchupBadge(s.add.id, data)} ${usageTrendBadge(s.add.id, data)}</span>
-        <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts</span>
+        <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts ${blendNote(s.add.id, data)}</span>
         ${recentFormLine(s.add.id, data)}
       </div>
       <span class="swap-arrow">could replace</span>
       <div class="player-chip">
         <span class="name">${s.considerDropping.name} ${agreementBadge(s.considerDropping.id, data)} ${matchupBadge(s.considerDropping.id, data)} ${usageTrendBadge(s.considerDropping.id, data)}</span>
-        <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts</span>
+        <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts ${blendNote(s.considerDropping.id, data)}</span>
         ${recentFormLine(s.considerDropping.id, data)}
       </div>
       <span class="waiver-edge">+${s.edge.toFixed(1)}</span>

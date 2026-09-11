@@ -42,9 +42,10 @@ their last few games) -- both computed from real box scores, no setup
 needed. See
 [Matchup and usage-trend badges](#matchup-and-usage-trend-badges) below.
 
-Optionally, it can also: blend in a second, independent projection source
-(ESPN) and flag how much the two agree; and put an "Ask Claude" research
-button on each swap/waiver suggestion and on the trade analyzer. See
+Optionally, it can also: pull in a second, independent projection source
+(ESPN) as a reference point and flag how much it agrees with Sleeper's
+own number; and put an "Ask Claude" research button on each swap/waiver
+suggestion and on the trade analyzer. See
 [Optional: a Cloudflare Worker unlocks two more features](#optional-a-cloudflare-worker-unlocks-two-more-features)
 below.
 
@@ -337,12 +338,15 @@ before if you skip this section entirely. They share one small proxy
 
 ### Blending in ESPN's projections
 
-By default the app ranks players using Sleeper's own projections alone
-(plus CBS's rank-based tiebreaker above). This blends in ESPN's independent
-projections too — the two get averaged per player, and swap/waiver
-suggestions get a badge showing how much the sources agree (**Strong** /
-**Mixed** / **Split**), so a suggestion both sources like looks different
-from one that's a coin flip.
+The app always ranks, sorts, and totals players using Sleeper's own
+projections — since these are Sleeper leagues, that's the number that
+actually determines real scoring, so it's never averaged away with
+another source. This setting pulls in ESPN's independent projection too,
+purely as a second opinion: swap/waiver suggestions get a badge showing
+how much the two sources agree (**Strong** / **Mixed** / **Split**), plus
+a small, de-emphasized "(blend N)" next to the projection showing what
+the Sleeper/ESPN average would have been — informational only, never
+what the app itself decides anything from.
 
 This only covers QB/RB/WR/TE — kicker and defense scoring differ enough
 between the two providers (distance-bucketed field goals, points-allowed
