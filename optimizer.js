@@ -178,23 +178,36 @@ const Optimizer = (() => {
   // genuinely no better option.
   //
   // The bench replacement isn't just "the next-best player at the same
-  // position" -- it re-runs the full lineup optimizer with this player
-  // removed from the pool and reads off whoever the optimizer now assigns
-  // to the exact slot they'd vacate, so it correctly accounts for ripple
-  // effects (e.g. removing a WR1 might shift a FLEX-eligible RB into that
-  // WR slot, with a bench RB filling the FLEX instead, rather than just
-  // handing the WR slot to your next-best bench WR).
+  // position" -- it compares the optimal lineup WITH this player available
+  // against the optimal lineup WITHOUT them, and reads off whoever is
+  // newly in the second one. Both sides go through the same optimizer, so
+  // the diff isolates exactly the ripple this one player's absence causes
+  // (e.g. a FLEX-eligible player sliding over, a true bench player finally
+  // getting a slot) -- as opposed to diffing against the user's actual
+  // real-world starters, which can disagree with the optimizer for
+  // reasons that have nothing to do with this injury (a different
+  // starter they're already benching by choice, say), and would then get
+  // wrongly reported as "the bench replacement" for an unrelated slot.
+  //
+  // Comparing by the SET of who's starting, not a fixed slot index,
+  // matters too: with two interchangeable slots (e.g. two WR spots), the
+  // optimizer's greedy refill can slide an already-starting player (the
+  // other WR) into the exact slot index a naive comparison would read,
+  // while the genuine bench player who actually joins the lineup lands in
+  // the OTHER WR slot instead -- which misreads as "your other starter is
+  // the bench replacement", i.e. suggesting a player who's already in
+  // your lineup.
   function injuryReplacements(playerId, rosterPositions, currentStarters, rosterPlayerIds, allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds) {
     let benchReplacement = null;
-    const slotIndex = (currentStarters || []).indexOf(playerId);
-    if (slotIndex !== -1) {
-      const startSlots = rosterPositions.filter(s => s !== 'BN' && s !== 'IR' && s !== 'TAXI');
-      const slot = startSlots[slotIndex];
+    if ((currentStarters || []).includes(playerId)) {
+      const withPlayer = optimalLineup(rosterPositions, rosterPlayerIds, allPlayerMeta, valuation);
+      const withPlayerSet = new Set(withPlayer.assignments.map(a => a.id).filter(Boolean));
+
       const remainingPlayers = (rosterPlayerIds || []).filter(id => id !== playerId);
-      const hypothetical = optimalLineup(rosterPositions, remainingPlayers, allPlayerMeta, valuation);
-      const assignment = hypothetical.assignments[slotIndex];
-      if (assignment && assignment.id) {
-        benchReplacement = { id: assignment.id, ...allPlayerMeta[assignment.id], pts: assignment.pts, slot };
+      const withoutPlayer = optimalLineup(rosterPositions, remainingPlayers, allPlayerMeta, valuation);
+      const addition = withoutPlayer.assignments.find(a => a.id && !withPlayerSet.has(a.id));
+      if (addition) {
+        benchReplacement = { id: addition.id, ...allPlayerMeta[addition.id], pts: addition.pts, slot: addition.slot };
       }
     }
 
