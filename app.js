@@ -1,6 +1,8 @@
 /* App state, wiring, and rendering. Vanilla JS, no build step, so this can
  * be pushed straight to GitHub Pages as-is. */
 
+const PROJECTION_MODE_KEY = 'fcc_projection_mode_v1';
+
 const state = {
   username: null,
   userId: null,
@@ -11,6 +13,14 @@ const state = {
   selectedCandidates: new Set(),
   workerProxyUrl: null,
   trade: { opponentRosterId: null, sideA: new Set(), sideB: new Set() },
+  // 'sleeper' or 'blend' -- which projection the Lineup tab's two rosters
+  // (yours and this week's opponent) and their totals are shown/scored
+  // against. Sleeper's own number is still what every recommendation
+  // elsewhere in the app (swaps, waivers, trades) is built on regardless
+  // of this toggle -- see effectiveValuation.
+  projectionMode: (() => {
+    try { return localStorage.getItem(PROJECTION_MODE_KEY) === 'blend' ? 'blend' : 'sleeper'; } catch (e) { return 'sleeper'; }
+  })(),
 };
 
 const STORAGE_KEY = 'fcc_setup_v1';
@@ -527,6 +537,43 @@ function blendNote(playerId, data) {
   return `<span class="blend-note">(blend ${blended.toFixed(1)})</span>`;
 }
 
+// The valuation dict the Lineup tab's two roster grids (and their totals)
+// actually display/score against -- Sleeper's own projection, or the
+// Sleeper/ESPN blend for whoever has one, per the projection-mode toggle.
+// A player blending doesn't cover (K/DEF, or no ESPN data this week)
+// falls back to their Sleeper number in blend mode too, same as the
+// blend note being absent for them elsewhere. This is purely a display
+// toggle -- every recommendation elsewhere in the app (swaps, waivers,
+// trades) is always built on plain Sleeper valuation regardless of it.
+function effectiveValuation(data) {
+  if (state.projectionMode !== 'blend' || !data.blendedValuation) return data.valuation;
+  return { ...data.valuation, ...data.blendedValuation };
+}
+
+function hasBlendData(data) {
+  return Boolean(data.blendedValuation && Object.keys(data.blendedValuation).length);
+}
+
+function initProjectionToggle() {
+  document.querySelectorAll('#projectionToggle .toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.mode === state.projectionMode) return;
+      state.projectionMode = btn.dataset.mode;
+      try { localStorage.setItem(PROJECTION_MODE_KEY, state.projectionMode); } catch (e) { /* ignore */ }
+      const data = state.leagueData[state.activeLeagueId];
+      if (data) renderLineupTab(data);
+    });
+  });
+}
+
+function renderProjectionToggle(data) {
+  const wrap = el('projectionToggle');
+  wrap.classList.toggle('hidden', !hasBlendData(data));
+  wrap.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === state.projectionMode);
+  });
+}
+
 // "Good matchup" / "Tough matchup" against this player's actual NFL
 // opponent this week, based on how many fantasy points that defense has
 // allowed to this position all season (see Trends.computeDvp). Only shows
@@ -782,13 +829,20 @@ function renderLineupTab(data) {
     playerMeta,
     valuation
   );
+  // The two roster grids and their totals are the only things the
+  // projection-mode toggle affects -- swaps above stay on plain Sleeper
+  // valuation, since that's still what every recommendation in this app
+  // is built on regardless of the toggle.
+  const projValuation = effectiveValuation(data);
   const current = Optimizer.currentLineup(
     league.roster_positions,
     myRoster.starters || [],
     myRoster.players || [],
     playerMeta,
-    valuation
+    projValuation
   );
+
+  renderProjectionToggle(data);
 
   let liveTotal = 0;
   let anyActual = false;
@@ -798,8 +852,9 @@ function renderLineupTab(data) {
     liveTotal += live.pts;
     if (live.isActual) anyActual = true;
   });
+  const blendSuffix = state.projectionMode === 'blend' ? ' (blend)' : '';
   el('heroTotal').textContent = liveTotal.toFixed(1);
-  el('heroLabel').textContent = anyActual ? 'Live starting total' : 'Projected starting total';
+  el('heroLabel').textContent = (anyActual ? 'Live starting total' : 'Projected starting total') + blendSuffix;
 
   renderLockReminder(data);
   renderInjuryWatch(data);
@@ -1107,7 +1162,7 @@ function renderOpponentLineup(data) {
   }
 
   const oppLineup = Optimizer.currentLineup(
-    league.roster_positions, opponent.starters, opponent.players, playerMeta, data.valuation
+    league.roster_positions, opponent.starters, opponent.players, playerMeta, effectiveValuation(data)
   );
 
   let oppLiveTotal = 0;
@@ -1119,8 +1174,9 @@ function renderOpponentLineup(data) {
     if (live.isActual) oppAnyActual = true;
   });
 
+  const blendSuffix = state.projectionMode === 'blend' ? ' (blend)' : '';
   heroBlock.classList.remove('hidden');
-  el('oppHeroLabel').textContent = `${possessive(opponent.name)} ${oppAnyActual ? 'live' : 'projected'} total`;
+  el('oppHeroLabel').textContent = `${possessive(opponent.name)} ${oppAnyActual ? 'live' : 'projected'} total${blendSuffix}`;
   el('oppHeroTotal').textContent = oppLiveTotal.toFixed(1);
 
   heading.classList.remove('hidden');
@@ -1593,6 +1649,7 @@ window.addEventListener('pageshow', (event) => {
   initSetup();
   initTabs();
   initBadgeTapTooltips();
+  initProjectionToggle();
   const saved = loadSavedSetup();
   if (saved && saved.leagues && saved.leagues.length) {
     state.username = saved.username;

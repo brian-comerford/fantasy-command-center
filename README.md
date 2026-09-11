@@ -348,6 +348,16 @@ a small, de-emphasized "(blend N)" next to the projection showing what
 the Sleeper/ESPN average would have been — informational only, never
 what the app itself decides anything from.
 
+The Lineup tab's "Your current lineup" and "This week's opponent"
+grids (and their totals) can also be switched to show the blend
+outright, via a **Sleeper / Blend** toggle that appears once blend data's
+available for the week — useful for eyeballing the two side by side.
+It's scoped to just those two grids: swap suggestions, waiver targets,
+and trade values are always built on plain Sleeper valuation no matter
+which mode the toggle is in, and a player who's already played is shown
+by their real score either way — only the projection for someone who
+hasn't played yet changes with the toggle.
+
 This only covers QB/RB/WR/TE — kicker and defense scoring differ enough
 between the two providers (distance-bucketed field goals, points-allowed
 tiers) that translating one into the other would be more misleading than

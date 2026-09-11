@@ -266,6 +266,38 @@ button, input, select {
   min-height: 16px;
 }
 
+.projection-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.toggle-label {
+  font-size: 12px;
+  color: var(--chalk-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--chalk-dim);
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toggle-btn:hover { color: var(--chalk); }
+.toggle-btn.active {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+  background: rgba(216, 169, 59, 0.08);
+}
+
 .matchup-totals {
   display: flex;
   flex-wrap: wrap;
