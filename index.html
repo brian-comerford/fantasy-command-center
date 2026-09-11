@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=17">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=16" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=17" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -215,6 +215,7 @@
         <p>Every rostered player's bye week, grouped and sorted, for the current week and beyond -- so a bye doesn't surprise you the week of, and you've got a heads-up to work the waiver wire or a trade beforehand instead of scrambling. A week highlighted in gold is this week or next.</p>
         <p class="info-example"><span class="bye-gap-warning">No eligible RB available this week -- consider a waiver add before then.</span></p>
         <p>A week highlighted in red goes a step further: it checks whether that week's byes actually leave a starting slot with nobody eligible to fill it at all, not just thinner than usual -- comparing your full roster's best lineup against the same lineup with that week's bye players pulled out. Only a slot that would've been filled at full strength and isn't anymore counts; a spot the roster was already light at regardless of byes doesn't trigger it.</p>
+        <p>When it does, two fixes are suggested for a single-position slot (QB/RB/WR/TE/K/DEF) -- a <strong>1-for-1 swap</strong> (drop the gapped player outright for a free agent who isn't themselves on bye that week) or a <strong>temp fill-in</strong> (keep the gapped player, temporarily cut your least valuable bench spot instead, and reverse both moves once the bye week's over). Neither move happens automatically -- this app doesn't touch your roster -- and each comes with the same Ask Claude research button as any other suggestion. A FLEX-type gap (several positions' worth of bench out at once) is rare and ambiguous enough about which position to fix that it's flagged without a suggested swap.</p>
       </div>
     </section>
 
@@ -236,15 +237,15 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=16"></script>
-<script src="player-id-crosswalk.js?v=16"></script>
-<script src="espn-api.js?v=16"></script>
-<script src="cbs-api.js?v=16"></script>
-<script src="claude-assist.js?v=16"></script>
-<script src="scoring.js?v=16"></script>
-<script src="optimizer.js?v=16"></script>
-<script src="stats.js?v=16"></script>
-<script src="trends.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="sleeper-api.js?v=17"></script>
+<script src="player-id-crosswalk.js?v=17"></script>
+<script src="espn-api.js?v=17"></script>
+<script src="cbs-api.js?v=17"></script>
+<script src="claude-assist.js?v=17"></script>
+<script src="scoring.js?v=17"></script>
+<script src="optimizer.js?v=17"></script>
+<script src="stats.js?v=17"></script>
+<script src="trends.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

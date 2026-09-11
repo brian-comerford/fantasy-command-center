@@ -986,16 +986,57 @@ async function loadAndRenderByePlanner(data) {
     );
     const row = document.createElement('div');
     row.className = 'bye-week-row' + (gaps.length ? ' gap' : w - data.week <= 1 ? ' soon' : '');
-    const warning = gaps.length
-      ? `<div class="bye-gap-warning">No eligible ${gaps.join(' or ')} available this week -- consider a waiver add before then.</div>`
-      : '';
+
+    let warning = '';
+    const fixes = [];
+    if (gaps.length) {
+      warning = `<div class="bye-gap-warning">No eligible ${gaps.join(' or ')} available this week -- consider a waiver add before then.</div>`;
+      gaps.forEach(slot => {
+        const fix = Optimizer.suggestByeGapFix(
+          slot, w, data.myRoster, data.playerMeta, data.valuation, data.rosteredIds, byeWeeks
+        );
+        if (fix) fixes.push(fix);
+      });
+    }
+
+    // Two ways to actually fix a flagged gap: swap the gapped player
+    // outright, or keep them and temporarily cut your worst bench player
+    // to open a spot for the same free agent just for that one week (you'd
+    // reverse both moves after -- this app doesn't make roster moves for
+    // you). Each gets the same Ask Claude research button as any other
+    // suggestion, scoped to the 1-for-1 framing.
+    const fixesHtml = fixes.map((fix, i) => {
+      const dropNames = fix.oneForOneDrop.map(p => p.name).join(' and ') || 'that slot';
+      const addLabel = `${fix.waiverAdd.name} (${fix.waiverAdd.pos} ${fix.waiverAdd.team}, ${fix.waiverAdd.pts.toFixed(1)} pts)`;
+      const oneForOne = `<div class="injury-replacement-option"><span class="label">1-for-1 swap</span> Drop ${dropNames} -- add ${addLabel}</div>`;
+      const tempFix = fix.tempDrop
+        ? `<div class="injury-replacement-option"><span class="label">Temp fill-in</span> Drop ${fix.tempDrop.name} for Week ${w} only -- add ${addLabel}, then reverse both moves after</div>`
+        : '';
+      return `<div class="bye-fix-options" data-fix-index="${i}">${oneForOne}${tempFix}${askClaudeMarkup()}</div>`;
+    }).join('');
+
     row.innerHTML = `
       <span class="week-label">Week ${w}</span>
       <div class="content">
         <span class="players">${players.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ')}</span>
         ${warning}
+        ${fixesHtml}
       </div>
     `;
+
+    row.querySelectorAll('.bye-fix-options').forEach(fixEl => {
+      const fix = fixes[Number(fixEl.dataset.fixIndex)];
+      const dropForQuestion = fix.oneForOneDrop[0] || fix.tempDrop;
+      const cacheKey = ClaudeAssist.cacheKeyFor({
+        type: 'waiver', leagueId: data.league.league_id, season: data.season, week: w,
+        aId: fix.waiverAdd.id, bId: dropForQuestion ? dropForQuestion.id : '',
+      });
+      wireAskClaudeButton(fixEl, cacheKey, () => ClaudeAssist.buildWaiverQuestion({
+        league: data.league.name, week: w, season: data.season,
+        add: fix.waiverAdd, drop: dropForQuestion,
+      }));
+    });
+
     list.appendChild(row);
   });
 }

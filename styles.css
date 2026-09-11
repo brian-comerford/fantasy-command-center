@@ -492,6 +492,16 @@ button, input, select {
 }
 .bye-week-row .players { color: var(--chalk); }
 
+.bye-fix-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.bye-fix-options + .bye-fix-options { border-top: none; padding-top: 0; margin-top: 0; }
+
 .waiver-list { display: flex; flex-direction: column; gap: 8px; }
 
 .waiver-card {

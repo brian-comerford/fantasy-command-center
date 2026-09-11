@@ -242,6 +242,54 @@ const Optimizer = (() => {
     return gaps;
   }
 
+  // For one slot findByeGaps flagged, suggests two ways to actually fix
+  // it: swap the gapped player outright for a free agent who isn't
+  // themselves on bye that week, or keep the gapped player and
+  // temporarily cut your least valuable bench player instead, just to
+  // open a roster spot for that same free agent for the one week (the
+  // idea being you drop the fill-in and re-add your own bench player
+  // again afterward -- this app doesn't make roster moves for you, so
+  // that reversal is on you to remember).
+  //
+  // Only handles a strict single-position slot (QB/RB/WR/TE/K/DEF) -- a
+  // FLEX-type gap means several positions' worth of bench is out at once,
+  // rare enough and ambiguous enough about which single position to
+  // replace that it's left unsuggested rather than guessed at. Returns
+  // null for a FLEX-type slot, or if there's truly no free agent at the
+  // position who isn't ALSO on bye that same week.
+  function suggestByeGapFix(slot, gapWeek, myRoster, allPlayerMeta, valuation, rosteredIdsLeagueWide, byeWeeks) {
+    const eligible = eligiblePositions(slot);
+    if (eligible.length !== 1) return null;
+    const position = eligible[0];
+
+    const rosteredSet = new Set(rosteredIdsLeagueWide);
+    const waiverAdd = Object.entries(allPlayerMeta)
+      .filter(([id, meta]) => !rosteredSet.has(id) && meta.active && meta.team !== 'FA'
+        && meta.pos === position && byeWeeks[meta.team] !== gapWeek)
+      .map(([id, meta]) => ({ id, ...meta, pts: valuation[id] ?? 0 }))
+      .sort((a, b) => b.pts - a.pts)[0];
+    if (!waiverAdd) return null;
+
+    // Every rostered player at this exact position who's on bye this
+    // week -- for a normal single-K/single-DEF roster that's just the one
+    // player causing the gap, but a roster carrying two at the position
+    // could in principle have both out the same week.
+    const gappedPlayers = (myRoster.players || [])
+      .filter(id => {
+        const meta = allPlayerMeta[id];
+        return meta && meta.pos === position && byeWeeks[meta.team] === gapWeek;
+      })
+      .map(id => ({ id, ...allPlayerMeta[id], pts: valuation[id] ?? 0 }));
+
+    const gappedIds = new Set(gappedPlayers.map(p => p.id));
+    const bench = (myRoster.players || [])
+      .filter(id => !(myRoster.starters || []).includes(id) && allPlayerMeta[id] && !gappedIds.has(id))
+      .map(id => ({ id, ...allPlayerMeta[id], pts: valuation[id] ?? 0 }))
+      .sort((a, b) => a.pts - b.pts);
+
+    return { position, waiverAdd, oneForOneDrop: gappedPlayers, tempDrop: bench[0] || null };
+  }
+
   // Scans every OTHER roster in the league for a bench player who'd
   // clearly upgrade one of your own starters -- not a free agent (that's
   // waiverTargets above), a player someone else already owns but isn't
@@ -321,5 +369,5 @@ const Optimizer = (() => {
     return { a, b, diff: Math.round((a.total - b.total) * 100) / 100 };
   }
 
-  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements, findByeGaps };
+  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements, findByeGaps, suggestByeGapFix };
 })();

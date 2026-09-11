@@ -187,6 +187,19 @@ week." A slot the roster was already thin at regardless of anyone's bye
 doesn't count; only a slot that would've been filled at full strength and
 genuinely can't be anymore triggers it.
 
+For a flagged single-position slot (QB/RB/WR/TE/K/DEF), two ways to fix
+it come with the warning: a **1-for-1 swap** -- drop the gapped player
+outright for a free agent at that position who isn't themselves on bye
+that week -- or a **temp fill-in** -- keep the gapped player, temporarily
+cut your least valuable bench spot to open a roster space for that same
+free agent, and reverse both moves once the bye week's past. Neither
+happens automatically; this app is read-only against your roster, so
+both are suggestions to act on yourself in Sleeper, each with the same
+Ask Claude research button as any other suggestion in the app. A
+FLEX-type gap (several positions' worth of bench out at once) is rare
+and ambiguous enough about which single position to fix that it's
+flagged without a suggested swap.
+
 ## Injury watch
 
 The Lineup tab flags every rostered player carrying a Sleeper injury/status
