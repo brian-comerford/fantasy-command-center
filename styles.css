@@ -618,7 +618,15 @@ button, input, select {
 .badge-tooltip {
   position: fixed;
   z-index: 200;
-  max-width: 240px;
+  /* A fixed-position box with only `left` set (no `right`, no explicit
+     width) shrinks to fit the space between that left offset and the
+     viewport's right edge, NOT to its actual content width -- so a badge
+     tapped on the left side of a narrow screen was wrapping well short of
+     max-width even though there was room to spare elsewhere. `max-content`
+     sizes it to what the text actually needs instead, still capped by
+     max-width so a long sentence-style tooltip still wraps sanely. */
+  width: max-content;
+  max-width: 300px;
   background: var(--panel-raised);
   border: 1px solid var(--gold-dim);
   color: var(--chalk);
