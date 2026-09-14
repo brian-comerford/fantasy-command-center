@@ -138,12 +138,131 @@ const Optimizer = (() => {
     return { optimal, swaps };
   }
 
-  // Finds free agents who outproject a roster's weakest starter/bench player
-  // at the same position.
-  function waiverTargets(rosterPlayerIds, allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds, limit = 25) {
+  // Positions the waiver/value tools reason about -- IDP slots are left
+  // out here same as everywhere else that already special-cases K/DEF
+  // (leagueTradeScan, etc.), since most leagues don't roster them.
+  const NEED_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+
+  // How many starting slots (excluding bench/IR/taxi) each position could
+  // fill, counting both its own strict slot(s) and any shared FLEX-type
+  // slot it's eligible for -- a rough measure of how many good players a
+  // full-strength roster actually needs at that position, used below to
+  // judge depth against real demand rather than against a fixed slot count.
+  function positionDemand(rosterPositions) {
+    const startSlots = rosterPositions.filter(s => s !== 'BN' && s !== 'IR' && s !== 'TAXI');
+    const demand = {};
+    NEED_POSITIONS.forEach(pos => { demand[pos] = 0; });
+    startSlots.forEach(slot => {
+      eligiblePositions(slot).forEach(pos => {
+        if (pos in demand) demand[pos] += 1;
+      });
+    });
+    return demand;
+  }
+
+  // Every ROSTERED player league-wide at each position, best to worst by
+  // valuation -- the full universe of "ownable" quality at that position
+  // right now. Ranking a roster's own players against this (instead of
+  // just against that same roster's single weakest player) is what lets
+  // "team need" below tell a genuinely thin position apart from one that
+  // only looks weak because its own worst bench player is, well, a bench
+  // player.
+  function leagueWideByPosition(rosters, playerMeta, valuation) {
+    const byPos = {};
+    NEED_POSITIONS.forEach(pos => { byPos[pos] = []; });
+    rosters.forEach(roster => {
+      (roster.players || []).forEach(id => {
+        const meta = playerMeta[id];
+        if (!meta || !(meta.pos in byPos)) return;
+        byPos[meta.pos].push({ id, rosterId: roster.roster_id, pts: valuation[id] ?? 0 });
+      });
+    });
+    NEED_POSITIONS.forEach(pos => byPos[pos].sort((a, b) => b.pts - a.pts));
+    return byPos;
+  }
+
+  // Replacement level per position: the valuation of the player sitting
+  // right at the point in the league-wide ranking where every team's
+  // demand for that position (positionDemand * number of teams) runs out
+  // -- roughly "the best player still sitting on the waiver wire," i.e.
+  // the standard fantasy-analysis baseline that a player's real value is
+  // measured ABOVE, not their raw point total (which just rewards
+  // high-scoring positions like RB/WR over e.g. TE regardless of how
+  // replaceable a given player actually is).
+  function replacementLevels(rosterPositions, rosters, playerMeta, valuation) {
+    const demand = positionDemand(rosterPositions);
+    const leagueWide = leagueWideByPosition(rosters, playerMeta, valuation);
+    const numTeams = rosters.length || 1;
+    const levels = {};
+    NEED_POSITIONS.forEach(pos => {
+      const pool = leagueWide[pos];
+      if (!pool.length) { levels[pos] = 0; return; }
+      const rank = Math.max(1, Math.round(numTeams * (demand[pos] || 0)));
+      const idx = Math.min(rank, pool.length) - 1;
+      levels[pos] = pool[idx].pts;
+    });
+    return levels;
+  }
+
+  // How thin or deep a roster genuinely is at each position, relative to
+  // the rest of the league -- not "what's my single worst player here"
+  // (which just describes a bench, every roster has a worst player at
+  // every position it rosters two-plus of), but where this roster's own
+  // players at that position actually RANK among every player anyone in
+  // the league has rostered there. A position where my players sit near
+  // the top of that league-wide list is a real strength; one where
+  // they're buried in the bottom half, or I don't even have enough of
+  // them to fill my own starting need, is a real weakness -- exactly the
+  // "3 good RBs but only 1-2 good WRs" case this is meant to catch.
+  // needScore is 0 (as deep as it gets) to 1 (worst possible); a missing
+  // starter-tier player counts as the worst possible rank, since not
+  // having enough bodies at a position is itself a need.
+  function positionalNeed(rosterPositions, rosters, myRosterId, playerMeta, valuation) {
+    const demand = positionDemand(rosterPositions);
+    const leagueWide = leagueWideByPosition(rosters, playerMeta, valuation);
+    const myRoster = rosters.find(r => r.roster_id === myRosterId);
+    const myIds = new Set((myRoster && myRoster.players) || []);
+
+    const need = {};
+    NEED_POSITIONS.forEach(pos => {
+      const pool = leagueWide[pos];
+      const need_n = demand[pos] || 0;
+      if (!pool.length || !need_n) {
+        need[pos] = { needScore: 0, demand: need_n };
+        return;
+      }
+      const myRanks = pool
+        .map((p, i) => ({ id: p.id, rank: i + 1 }))
+        .filter(p => myIds.has(p.id))
+        .map(p => p.rank)
+        .sort((a, b) => a - b)
+        .slice(0, need_n);
+      while (myRanks.length < need_n) myRanks.push(pool.length + 1);
+
+      const avgRank = myRanks.reduce((s, r) => s + r, 0) / myRanks.length;
+      const needScore = Math.max(0, Math.min(1, avgRank / (pool.length + 1)));
+      need[pos] = { needScore, demand: need_n };
+    });
+    return need;
+  }
+
+  // How much extra weight a real positional need adds to a waiver edge's
+  // sort priority -- 0 (no need) leaves the edge as-is, 1 (maximum need)
+  // doubles it, so a smaller edge at a position the roster is genuinely
+  // thin at can outrank a bigger edge at one that's already stacked.
+  const NEED_WEIGHT = 1;
+
+  // Finds free agents who outproject a roster's weakest starter/bench
+  // player at the same position, same as before, but sorted by a priority
+  // score that also weighs in how much of a real team need that position
+  // is (see positionalNeed above) -- not just the raw point edge, and not
+  // just "replace whichever single player happens to be my lowest scorer,"
+  // since that alone can't tell a genuinely thin position apart from a
+  // deep one that simply has to have a last-ranked player too.
+  function waiverTargets(rosterPlayerIds, allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds, rosters, rosterPositions, myRosterId, limit = 25) {
     const rosteredSet = new Set(rosteredIdsLeagueWide);
     const freeAgents = Object.entries(allPlayerMeta)
-      .filter(([id, meta]) => !rosteredSet.has(id) && meta.active && meta.team !== 'FA' && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(meta.pos))
+      .filter(([id, meta]) => !rosteredSet.has(id) && meta.active && meta.team !== 'FA' && NEED_POSITIONS.includes(meta.pos))
       .map(([id, meta]) => ({ id, ...meta, pts: valuation[id] ?? 0, trending: trendingAddIds.has(id) }))
       .sort((a, b) => b.pts - a.pts);
 
@@ -157,19 +276,47 @@ const Optimizer = (() => {
       }
     }
 
+    const need = positionalNeed(rosterPositions, rosters, myRosterId, allPlayerMeta, valuation);
+
     const suggestions = [];
     for (const fa of freeAgents.slice(0, 200)) {
       const weakest = myByPos[fa.pos];
       if (weakest && fa.pts > weakest.pts + 0.01) {
+        const edge = Math.round((fa.pts - weakest.pts) * 100) / 100;
+        const needScore = (need[fa.pos] && need[fa.pos].needScore) || 0;
+        const priority = edge * (1 + NEED_WEIGHT * needScore);
         suggestions.push({
           add: fa,
           considerDropping: { id: weakest.id, ...allPlayerMeta[weakest.id], pts: weakest.pts },
-          edge: Math.round((fa.pts - weakest.pts) * 100) / 100,
+          edge,
+          needScore: Math.round(needScore * 100) / 100,
+          priority,
         });
       }
     }
-    suggestions.sort((a, b) => b.edge - a.edge);
+    suggestions.sort((a, b) => b.priority - a.priority);
     return suggestions.slice(0, limit);
+  }
+
+  // The best free agents on the wire, full stop -- independent of this
+  // roster's own needs, ranked by value over replacement (a player's
+  // valuation minus their position's replacementLevel above) rather than
+  // raw points, so a QB/RB/WR/TE/K/DEF's genuinely scarce value at their
+  // own position is what's being compared, not positions with naturally
+  // higher point totals crowding out the rest.
+  function bestAvailableValue(allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds, rosters, rosterPositions, limit = 15) {
+    const rosteredSet = new Set(rosteredIdsLeagueWide);
+    const levels = replacementLevels(rosterPositions, rosters, allPlayerMeta, valuation);
+    const values = Object.entries(allPlayerMeta)
+      .filter(([id, meta]) => !rosteredSet.has(id) && meta.active && meta.team !== 'FA' && NEED_POSITIONS.includes(meta.pos))
+      .map(([id, meta]) => {
+        const pts = valuation[id] ?? 0;
+        const vor = Math.round((pts - (levels[meta.pos] || 0)) * 100) / 100;
+        return { id, ...meta, pts, vor, trending: trendingAddIds.has(id) };
+      })
+      .filter(fa => fa.vor > 0)
+      .sort((a, b) => b.vor - a.vor);
+    return values.slice(0, limit);
   }
 
   // For one specific rostered player (typically one flagged with an injury
@@ -382,5 +529,5 @@ const Optimizer = (() => {
     return { a, b, diff: Math.round((a.total - b.total) * 100) / 100 };
   }
 
-  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements, findByeGaps, suggestByeGapFix };
+  return { optimalLineup, currentLineup, suggestedSwaps, waiverTargets, bestAvailableValue, positionalNeed, leagueTradeScan, tradeSummary, eligiblePositions, injuryReplacements, findByeGaps, suggestByeGapFix };
 })();

@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=23">
+<link rel="stylesheet" href="styles.css?v=24">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=23" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=24" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -99,9 +99,17 @@
     </section>
 
     <section id="waiversTab" class="tab-panel hidden">
+      <h2 class="section-heading">Team needs</h2>
+      <p class="muted">Where your roster ranks at each position against every player rostered league-wide, highest need first -- pickups below are sorted with this in mind, not just raw points.</p>
+      <div id="teamNeedSummary" class="need-summary-list"></div>
+
       <h2 class="section-heading">Pickups that beat your roster</h2>
-      <p class="muted">Free agents projecting higher than your weakest player at the same position, sorted by the size of the edge.</p>
+      <p class="muted">Free agents projecting higher than your weakest player at the same position, prioritized by real team need (a thin position can outrank a bigger raw edge at a position you're already deep at).</p>
       <div id="waiverList" class="waiver-list"></div>
+
+      <h2 class="section-heading">Best value on waivers</h2>
+      <p class="muted">The strongest free agents on the wire, full stop -- ranked by value over replacement at their own position, independent of your roster.</p>
+      <div id="bestValueList" class="waiver-list"></div>
     </section>
 
     <section id="tradeTab" class="tab-panel hidden">
@@ -207,6 +215,22 @@
       </div>
 
       <div class="info-section">
+        <h3>Team needs / High need · Moderate need · Deep</h3>
+        <p class="info-example">
+          <span class="need-pill tier-high">WR · High need</span>
+          <span class="need-pill tier-moderate">RB · Moderate need</span>
+          <span class="need-pill tier-low">TE · Deep</span>
+        </p>
+        <p>The Waivers tab ranks your own players at each position against every player any team in your league has rostered there -- not just against your own single weakest player, which every roster has one of regardless of how deep it actually is. A position where your players sit near the top of that league-wide list is <strong>Deep</strong>; one where they're buried in the bottom half, or you don't have enough of them to fill your own starting need, is <strong>High need</strong>. This is what "3 good RBs but only 1-2 good WRs" looks like in practice, and it's why the pickup suggestions below are sorted by this instead of raw point edge alone -- a smaller edge at a position you're genuinely thin at can outrank a bigger one at a position you're already stacked.</p>
+        <p class="muted small">Hover (or tap, on mobile) the badge on an individual pickup card to see the exact need score behind it.</p>
+      </div>
+
+      <div class="info-section">
+        <h3>+N.N VOR (Best value on waivers)</h3>
+        <p>The Waivers tab's "Best value" list ranks free agents by value over replacement -- how many points above a replacement-level player at their own position they project, rather than by raw points, which would just always favor high-scoring positions like RB/WR over e.g. TE regardless of how replaceable a given player actually is. This list is independent of your own roster's needs above -- it's the strongest players still sitting on the wire, full stop.</p>
+      </div>
+
+      <div class="info-section">
         <h3>Injury Watch tags</h3>
         <p class="info-example"><span class="injury-status-badge">Questionable (Knee)</span></p>
         <p>The status and body part come straight from Sleeper's own injury report. "Bench option" and "Waiver option" are this app's suggested replacement if that player can't go -- the bench one accounts for how removing them reshuffles your other flex slots, not just a naive same-position swap; the waiver one is the best free agent at their position. Either can be missing if there's genuinely nothing better available.</p>
@@ -244,16 +268,16 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=23"></script>
-<script src="player-id-crosswalk.js?v=23"></script>
-<script src="espn-api.js?v=23"></script>
-<script src="fftoday-api.js?v=23"></script>
-<script src="cbs-api.js?v=23"></script>
-<script src="claude-assist.js?v=23"></script>
-<script src="scoring.js?v=23"></script>
-<script src="optimizer.js?v=23"></script>
-<script src="stats.js?v=23"></script>
-<script src="trends.js?v=23"></script>
-<script src="app.js?v=23"></script>
+<script src="sleeper-api.js?v=24"></script>
+<script src="player-id-crosswalk.js?v=24"></script>
+<script src="espn-api.js?v=24"></script>
+<script src="fftoday-api.js?v=24"></script>
+<script src="cbs-api.js?v=24"></script>
+<script src="claude-assist.js?v=24"></script>
+<script src="scoring.js?v=24"></script>
+<script src="optimizer.js?v=24"></script>
+<script src="stats.js?v=24"></script>
+<script src="trends.js?v=24"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

@@ -777,7 +777,7 @@ function initBadgeTapTooltips() {
   }
 
   document.addEventListener('click', (e) => {
-    const badge = e.target.closest('.agreement-badge, .cbs-tag, .matchup-badge, .usage-badge');
+    const badge = e.target.closest('.agreement-badge, .cbs-tag, .matchup-badge, .usage-badge, .need-badge');
     if (!badge) {
       hideTooltip();
       return;
@@ -1289,15 +1289,45 @@ function renderInjuryWatch(data) {
 
 /* ---------------- Waivers tab ---------------- */
 
+// 0 (as deep as it gets) to 1 (worst possible) from Optimizer.positionalNeed
+// -- bucketed into three labeled tiers for display, both on the team-need
+// summary strip and on each waiver card's own position badge.
+function needTierInfo(needScore) {
+  if (needScore >= 0.66) return { label: 'High need', cls: 'tier-high' };
+  if (needScore >= 0.33) return { label: 'Moderate need', cls: 'tier-moderate' };
+  return { label: 'Deep', cls: 'tier-low' };
+}
+
+// A compact "here's how thin each position is" strip at the top of the
+// Waivers tab, highest need first, so the priority ordering of the
+// suggestions below it (see Optimizer.waiverTargets) isn't a black box --
+// you can see WHY a WR pickup outranked a bigger-looking RB edge.
+function renderNeedSummary(need) {
+  const wrap = el('teamNeedSummary');
+  if (!wrap) return;
+  const ordered = Object.entries(need).sort((a, b) => b[1].needScore - a[1].needScore);
+  wrap.innerHTML = ordered.map(([pos, info]) => {
+    const tier = needTierInfo(info.needScore);
+    return `<span class="need-pill ${tier.cls}" title="${pos}: team need score ${Math.round(info.needScore * 100)}/100 against every player rostered league-wide">${pos} · ${tier.label}</span>`;
+  }).join('');
+}
+
 function renderWaiversTab(data) {
-  const { myRoster, playerMeta, valuation, rosteredIds, trendingIds } = data;
+  const { myRoster, playerMeta, valuation, rosteredIds, trendingIds, rosters, league } = data;
   if (!myRoster) return;
+
+  const need = Optimizer.positionalNeed(league.roster_positions, rosters, myRoster.roster_id, playerMeta, valuation);
+  renderNeedSummary(need);
+
   const suggestions = Optimizer.waiverTargets(
     myRoster.players || [],
     playerMeta,
     valuation,
     rosteredIds,
     trendingIds,
+    rosters,
+    league.roster_positions,
+    myRoster.roster_id,
     25
   );
 
@@ -1305,33 +1335,79 @@ function renderWaiversTab(data) {
   list.innerHTML = '';
   if (!suggestions.length) {
     list.innerHTML = '<p class="muted">No free agents currently outproject your roster at their position.</p>';
+  } else {
+    suggestions.forEach(s => {
+      const tier = needTierInfo(s.needScore);
+      const card = document.createElement('div');
+      card.className = 'waiver-card';
+      card.innerHTML = `
+        <div class="player-chip">
+          <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} <span class="need-badge ${tier.cls}" title="${s.add.pos} team need score: ${Math.round(s.needScore * 100)}/100 against every player rostered league-wide">${s.add.pos} ${tier.label}</span> ${confidenceBadges(s.add.id, s.considerDropping.id, data)} ${matchupBadge(s.add.id, data)} ${usageTrendBadge(s.add.id, data)}</span>
+          <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts ${blendNote(s.add.id, data)}</span>
+          ${recentFormLine(s.add.id, data)}
+        </div>
+        <span class="swap-arrow">could replace</span>
+        <div class="player-chip">
+          <span class="name">${s.considerDropping.name} ${agreementBadge(s.considerDropping.id, data)} ${matchupBadge(s.considerDropping.id, data)} ${usageTrendBadge(s.considerDropping.id, data)}</span>
+          <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts ${blendNote(s.considerDropping.id, data)}</span>
+          ${recentFormLine(s.considerDropping.id, data)}
+        </div>
+        <span class="waiver-edge">+${s.edge.toFixed(1)}</span>
+        ${askClaudeMarkup()}
+      `;
+      const waiverCacheKey = ClaudeAssist.cacheKeyFor({
+        type: 'waiver', leagueId: data.league.league_id, season: data.season, week: data.week,
+        aId: s.add.id, bId: s.considerDropping.id,
+      });
+      wireAskClaudeButton(card, waiverCacheKey, () => ClaudeAssist.buildWaiverQuestion({
+        league: data.league.name, week: data.week, season: data.season,
+        add: s.add, drop: s.considerDropping,
+      }));
+      list.appendChild(card);
+    });
+  }
+
+  renderBestValueList(data);
+}
+
+// The "best value on waivers" board: top free agents by value over
+// replacement (see Optimizer.bestAvailableValue) -- independent of this
+// roster's own needs above, just the strongest players still sitting on
+// the wire, position-scarcity-adjusted so a TE isn't buried under every
+// RB/WR just for scoring fewer raw points.
+function renderBestValueList(data) {
+  const { playerMeta, valuation, rosteredIds, trendingIds, rosters, league } = data;
+  const list = el('bestValueList');
+  if (!list) return;
+
+  const values = Optimizer.bestAvailableValue(
+    playerMeta, valuation, rosteredIds, trendingIds, rosters, league.roster_positions, 15
+  );
+
+  list.innerHTML = '';
+  if (!values.length) {
+    list.innerHTML = '<p class="muted">No free agent is currently projecting above replacement level at their position.</p>';
     return;
   }
-  suggestions.forEach(s => {
+  values.forEach(p => {
     const card = document.createElement('div');
     card.className = 'waiver-card';
     card.innerHTML = `
       <div class="player-chip">
-        <span class="name">${s.add.name} ${s.add.trending ? '<span class="trending-badge">Trending</span>' : ''} ${confidenceBadges(s.add.id, s.considerDropping.id, data)} ${matchupBadge(s.add.id, data)} ${usageTrendBadge(s.add.id, data)}</span>
-        <span class="meta">${s.add.pos} ${s.add.team} · ${s.add.pts.toFixed(1)} pts ${blendNote(s.add.id, data)}</span>
-        ${recentFormLine(s.add.id, data)}
+        <span class="name">${p.name} ${p.trending ? '<span class="trending-badge">Trending</span>' : ''} ${agreementBadge(p.id, data)} ${matchupBadge(p.id, data)} ${usageTrendBadge(p.id, data)}</span>
+        <span class="meta">${p.pos} ${p.team} · ${p.pts.toFixed(1)} pts ${blendNote(p.id, data)}</span>
+        ${recentFormLine(p.id, data)}
       </div>
-      <span class="swap-arrow">could replace</span>
-      <div class="player-chip">
-        <span class="name">${s.considerDropping.name} ${agreementBadge(s.considerDropping.id, data)} ${matchupBadge(s.considerDropping.id, data)} ${usageTrendBadge(s.considerDropping.id, data)}</span>
-        <span class="meta">${s.considerDropping.pos} ${s.considerDropping.team} · ${s.considerDropping.pts.toFixed(1)} pts ${blendNote(s.considerDropping.id, data)}</span>
-        ${recentFormLine(s.considerDropping.id, data)}
-      </div>
-      <span class="waiver-edge">+${s.edge.toFixed(1)}</span>
+      <span class="waiver-edge" title="Points above a replacement-level ${p.pos} in this league">+${p.vor.toFixed(1)} VOR</span>
       ${askClaudeMarkup()}
     `;
-    const waiverCacheKey = ClaudeAssist.cacheKeyFor({
-      type: 'waiver', leagueId: data.league.league_id, season: data.season, week: data.week,
-      aId: s.add.id, bId: s.considerDropping.id,
+    const cacheKey = ClaudeAssist.cacheKeyFor({
+      type: 'waiver-value', leagueId: data.league.league_id, season: data.season, week: data.week,
+      aId: p.id, bId: '',
     });
-    wireAskClaudeButton(card, waiverCacheKey, () => ClaudeAssist.buildWaiverQuestion({
+    wireAskClaudeButton(card, cacheKey, () => ClaudeAssist.buildValueQuestion({
       league: data.league.name, week: data.week, season: data.season,
-      add: s.add, drop: s.considerDropping,
+      add: p,
     }));
     list.appendChild(card);
   });

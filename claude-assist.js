@@ -106,6 +106,18 @@ const ClaudeAssist = (() => {
       `short, concrete take (3-5 sentences) on whether this pickup looks right this week.`;
   }
 
+  // Same idea as buildWaiverQuestion but for the "best value available"
+  // board, which isn't tied to any specific one of my own players to drop
+  // -- it's asking about the free agent on their own merits.
+  function buildValueQuestion({ league, week, season, add }) {
+    return `I play fantasy football in a league called "${league}" (${season} season, ` +
+      `Week ${week}). My waiver tool flags free agent ${add.name} (${add.pos} ${add.team}) ` +
+      `as one of the best-value players still available, independent of my own roster. ` +
+      `Search for the latest news on them -- why they're still available, recent role or ` +
+      `snap-count changes, injury status, and upcoming matchups -- and give me a short, ` +
+      `concrete take (3-5 sentences) on whether they're worth a roster spot right now.`;
+  }
+
   function buildTradeQuestion({ league, week, season, give, receive }) {
     const nameList = (players) => players.map(p => `${p.name} (${p.pos} ${p.team})`).join(', ');
     return `I play fantasy football in a league called "${league}" (${season} season, ` +
@@ -138,5 +150,5 @@ const ClaudeAssist = (() => {
       `and give me a short, concrete take (3-5 sentences) on ${decisionPart}.${replacementPart}`;
   }
 
-  return { ask, buildSwapQuestion, buildWaiverQuestion, buildTradeQuestion, buildInjuryQuestion, cacheKeyFor, getCached, setCached };
+  return { ask, buildSwapQuestion, buildWaiverQuestion, buildValueQuestion, buildTradeQuestion, buildInjuryQuestion, cacheKeyFor, getCached, setCached };
 })();
