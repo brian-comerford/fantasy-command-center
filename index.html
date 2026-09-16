@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=26">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=25" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=26" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -192,6 +192,7 @@
       <div class="info-section">
         <h3>Stats tab</h3>
         <p>Once Sleeper has posted real stats for a week (usually by Thursday night's game), it shows up here: your actual score for that week straight from Sleeper's own scoring, next to what your actual starting lineup was projected to score going in. The season cards above the week-by-week table roll all of that up -- record, points per week, best/worst week, and how often you've outscored your own projection.</p>
+        <p>The most recent week is left out of that season roll-up while it's still genuinely in progress -- a game or two left to play can still swing a live score by a lot. Once every game for that week has actually finished, it folds into the season cards automatically, even if Sleeper itself hasn't yet rolled its own "current week" forward to the next one (which it can take a day or two to do after a week wraps).</p>
       </div>
 
       <div class="info-section">
@@ -273,16 +274,16 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=25"></script>
-<script src="player-id-crosswalk.js?v=25"></script>
-<script src="espn-api.js?v=25"></script>
-<script src="fftoday-api.js?v=25"></script>
-<script src="cbs-api.js?v=25"></script>
-<script src="claude-assist.js?v=25"></script>
-<script src="scoring.js?v=25"></script>
-<script src="optimizer.js?v=25"></script>
-<script src="stats.js?v=25"></script>
-<script src="trends.js?v=25"></script>
-<script src="app.js?v=25"></script>
+<script src="sleeper-api.js?v=26"></script>
+<script src="player-id-crosswalk.js?v=26"></script>
+<script src="espn-api.js?v=26"></script>
+<script src="fftoday-api.js?v=26"></script>
+<script src="cbs-api.js?v=26"></script>
+<script src="claude-assist.js?v=26"></script>
+<script src="scoring.js?v=26"></script>
+<script src="optimizer.js?v=26"></script>
+<script src="stats.js?v=26"></script>
+<script src="trends.js?v=26"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>

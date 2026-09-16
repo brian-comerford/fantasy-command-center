@@ -108,7 +108,10 @@ number changes the URL, which forces a fresh fetch.
   specifically, any player whose game for the week is already over is
   valued by their real score instead of that week's pre-game projection,
   self-correcting the moment Sleeper's own projections move on to the
-  next week.
+  next week. Same root cause, same self-correcting fix on the **Stats**
+  tab: a fully-played week folds into the season summary based on real
+  NFL game dates, not on whether Sleeper has gotten around to calling it
+  a past week yet.
 - The lineup optimizer uses a greedy assignment (fill the most
   restrictive slots — QB, RB, WR, TE, K, DEF — first, then FLEX/SUPERFLEX
   slots with whoever's left). This matches the optimal lineup in the vast
@@ -266,7 +269,11 @@ in — not today's lineup, whatever you actually had in. The current week
 specifically is marked **Live**: it updates as your players finish their
 games, same as the Lineup tab, but it's left out of the season summary
 above the table until the week is actually over, since a game or two left
-to play can still swing a live score by a lot.
+to play can still swing a live score by a lot. "Actually over" is judged
+from real NFL game dates, not from Sleeper's own idea of the current
+week -- which can lag a day or two behind the games themselves finishing
+-- so a fully-played week folds into the season summary right away
+instead of waiting on Sleeper to catch up.
 
 The season cards roll up every finished week: your record, average points
 per week, best and worst week, and how often — and by how much, on

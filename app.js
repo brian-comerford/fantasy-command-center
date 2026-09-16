@@ -414,6 +414,22 @@ async function loadLeagueData(leagueId) {
     console.warn("Could not determine this week's matchups for DVP badges, continuing without them.", e);
   }
 
+  // Whether `week` (Sleeper's own idea of "the current week") has
+  // actually finished, independent of whether Sleeper has gotten around
+  // to rolling that number forward yet -- which per Sleeper's own refresh
+  // cadence can lag a day or two behind the games themselves finishing
+  // (same root cause as waiverTradeValuation above). Every NFL team's
+  // game date for this week is already sitting in teamDateThisWeek; if
+  // every one of them is before today, there's nothing left to play.
+  // Used by the Stats tab so a fully-played week doesn't sit excluded
+  // from the season summary just because Sleeper still calls it current.
+  const gameDatesThisWeek = Object.values(teamDateThisWeek).filter(Boolean);
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const currentWeekConcluded = gameDatesThisWeek.length > 0 && gameDatesThisWeek.every(d => d < todayStr);
+
   // Fallback to last season's actuals, but only for players this season's
   // data above didn't cover at all yet -- almost always just "hasn't
   // played their Week 1 game yet". Only worth fetching early in the
@@ -460,7 +476,7 @@ async function loadLeagueData(leagueId) {
     lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds, opponent,
-    dvp, usageTrends, teamOpponentThisWeek, teamDateThisWeek,
+    dvp, usageTrends, teamOpponentThisWeek, teamDateThisWeek, currentWeekConcluded,
   };
 
   const cbsNote = usedCbs ? ', with CBS\'s consensus rank as a tiebreaker' : '';
@@ -1636,7 +1652,7 @@ async function loadAndRenderStatsTab() {
   weeklyEl.innerHTML = '';
   try {
     const weeks = await Stats.loadWeeklyPerformance(
-      leagueId, data.myRoster, data.rosters, data.users, data.league, data.week, data.season
+      leagueId, data.myRoster, data.rosters, data.users, data.league, data.week, data.season, data.currentWeekConcluded
     );
     // The league/tab may have changed while this was in flight -- don't
     // paint stale results over whatever's actually on screen now.

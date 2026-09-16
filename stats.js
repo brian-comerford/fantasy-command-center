@@ -13,7 +13,10 @@
  * table but left out of the season summary's record/averages, since most
  * of the players involved likely haven't played yet and a score can (and
  * for the loaded team, currently 0-for-week, easily will) swing hard
- * before the week actually finishes.
+ * before the week actually finishes -- unless that week's real games are
+ * actually all done (see currentWeekConcluded below), since Sleeper
+ * itself can take a day or two to roll its own "current week" forward
+ * after the last game of a week wraps up.
  */
 
 const Stats = (() => {
@@ -26,7 +29,15 @@ const Stats = (() => {
 
   // Returns an array of per-week results, oldest week first, for every
   // week from 1 through currentWeek that Sleeper has actual stats for.
-  async function loadWeeklyPerformance(leagueId, myRoster, rosters, users, league, currentWeek, season) {
+  //
+  // currentWeekConcluded (see app.js, computed from real NFL game dates)
+  // tells the last week apart from a genuinely in-progress one even
+  // though both are w === currentWeek: Sleeper can take a day or two
+  // after a week's games actually finish before it rolls its own idea of
+  // "the current week" forward, and until it does, this would otherwise
+  // keep flagging an already-finished week as inProgress and leave it
+  // out of the season summary below.
+  async function loadWeeklyPerformance(leagueId, myRoster, rosters, users, league, currentWeek, season, currentWeekConcluded = false) {
     const weeks = [];
     for (let w = 1; w <= currentWeek; w++) {
       const weekStats = await SleeperAPI.getActualWeeklyStats(season, w, w === currentWeek ? 15 * 60 * 1000 : undefined);
@@ -61,7 +72,7 @@ const Stats = (() => {
         opponentName: oppTeam ? teamName(oppTeam.roster_id, rosters, users) : null,
         myProjected: myProjected != null ? Math.round(myProjected * 100) / 100 : null,
         diff: myProjected != null ? Math.round((myActual - myProjected) * 100) / 100 : null,
-        inProgress: w === currentWeek,
+        inProgress: w === currentWeek && !currentWeekConcluded,
       });
     }
     return weeks;
