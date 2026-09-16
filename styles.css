@@ -848,7 +848,7 @@ button, input, select {
 
 .stats-row {
   display: grid;
-  grid-template-columns: 46px 1fr 100px 70px 90px 70px;
+  grid-template-columns: 46px 1fr 100px 70px 90px 70px 80px;
   align-items: center;
   gap: 10px;
   background: var(--panel);
@@ -997,8 +997,8 @@ button, input, select {
   .swap-arrow { align-self: center; }
   .swap-gain, .waiver-edge { margin-left: 0; align-self: flex-end; }
 
-  /* Six columns doesn't fit a phone screen -- scroll horizontally rather
+  /* Seven columns doesn't fit a phone screen -- scroll horizontally rather
      than squeezing team names and numbers down to illegible widths. */
   .stats-table { overflow-x: auto; padding-bottom: 4px; }
-  .stats-row { grid-template-columns: 40px 110px 90px 60px 80px 60px; min-width: 460px; }
+  .stats-row { grid-template-columns: 40px 110px 90px 60px 80px 60px 70px; min-width: 530px; }
 }

@@ -281,6 +281,21 @@ average — you've outscored your own week's projection. Diffs and results
 are colored the same green/red convention as the rest of the app: green
 when you beat the number, red when you fell short.
 
+**Start/sit accuracy** — a separate season card, plus its own column in
+the week-by-week table — answers a different question than the projection
+diff above it: given how everyone on that week's actual roster really
+scored (real final numbers, not a projection), was your starting lineup
+the best one you could have set? It reruns the same lineup optimizer the
+Lineup tab's own swap suggestions are built on, but in hindsight — that
+week's real per-player scores in, that week's actual roster (rosters
+change week to week with adds/drops/trades, so this always uses whichever
+players were actually on the roster that week, not today's), and compares
+the best possible total against what you actually started. 100% means you
+started the optimal lineup; anything less shows as points left on the
+bench, both per week and summed for the season. Excluded from the season
+number while a week's still genuinely in progress, same as the rest of
+the summary above.
+
 ## Matchup and usage-trend badges
 
 Two more signals, shown as badges next to a player's name on the Lineup

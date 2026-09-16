@@ -6,6 +6,16 @@
  * for the Lineup tab) for what that week's actual starters were expected
  * to score.
  *
+ * Also start/sit accuracy: how close the actual starting lineup that week
+ * came to the best lineup that roster's real scores would have allowed,
+ * in hindsight. Run through the same Optimizer.optimalLineup the Lineup
+ * tab's own swap suggestions use, but fed that week's real per-player
+ * points (Sleeper's matchups endpoint already has these, no separate
+ * fetch needed) instead of a projection, and that week's actual roster
+ * (players change week to week with adds/drops/trades, so this always
+ * uses whichever players Sleeper's own matchup record shows for that
+ * week, not today's roster).
+ *
  * A week only appears once Sleeper has posted any real stats for it at all
  * (see SleeperAPI.getActualWeeklyStats) -- before kickoff there's nothing
  * real to measure against yet, so it's left out rather than shown as 0-0.
@@ -37,7 +47,7 @@ const Stats = (() => {
   // "the current week" forward, and until it does, this would otherwise
   // keep flagging an already-finished week as inProgress and leave it
   // out of the season summary below.
-  async function loadWeeklyPerformance(leagueId, myRoster, rosters, users, league, currentWeek, season, currentWeekConcluded = false) {
+  async function loadWeeklyPerformance(leagueId, myRoster, rosters, users, league, currentWeek, season, currentWeekConcluded = false, playerMeta = {}) {
     const weeks = [];
     for (let w = 1; w <= currentWeek; w++) {
       const weekStats = await SleeperAPI.getActualWeeklyStats(season, w, w === currentWeek ? 15 * 60 * 1000 : undefined);
@@ -64,6 +74,25 @@ const Stats = (() => {
       const oppActual = oppTeam ? Math.round((oppTeam.points || 0) * 100) / 100 : null;
       const result = oppTeam ? (myActual > oppActual ? 'W' : myActual < oppActual ? 'L' : 'T') : null;
 
+      // Start/sit accuracy: given the ACTUAL scores everyone on that
+      // week's roster (not today's roster -- rosters change week to week
+      // with adds/drops/trades) put up, was your actual starting lineup
+      // the best one you could have set? Optimizer.optimalLineup already
+      // does exactly this kind of hindsight comparison for the Injury
+      // Watch bench math -- here it's fed that week's real per-player
+      // points (myTeam.players_points, straight from Sleeper's matchups
+      // endpoint, same source as myActual above) instead of a projection.
+      // null when there's nothing to compare (e.g. playerMeta hasn't
+      // loaded), rather than a misleading 0% or 100%.
+      const myRosterThisWeek = myTeam.players || [];
+      const actualValuationThisWeek = myTeam.players_points || {};
+      const optimal = Optimizer.optimalLineup(league.roster_positions, myRosterThisWeek, playerMeta, actualValuationThisWeek);
+      const optimalPoints = Math.round(optimal.totalPts * 100) / 100;
+      // Clamped to 100 -- the optimizer's greedy slot-fill (see optimizer.js)
+      // can rarely be a fraction of a point off true optimal itself, which
+      // could otherwise show as a slightly-over-100% "accuracy."
+      const startSitAccuracy = optimalPoints > 0 ? Math.min(100, Math.round((myActual / optimalPoints) * 1000) / 10) : null;
+
       weeks.push({
         week: w,
         myActual,
@@ -72,6 +101,8 @@ const Stats = (() => {
         opponentName: oppTeam ? teamName(oppTeam.roster_id, rosters, users) : null,
         myProjected: myProjected != null ? Math.round(myProjected * 100) / 100 : null,
         diff: myProjected != null ? Math.round((myActual - myProjected) * 100) / 100 : null,
+        optimalPoints,
+        startSitAccuracy,
         inProgress: w === currentWeek && !currentWeekConcluded,
       });
     }
@@ -105,6 +136,22 @@ const Stats = (() => {
       ? withProjection.reduce((s, w) => s + w.diff, 0) / withProjection.length
       : null;
 
+    // Season start/sit accuracy: total actual points over total optimal
+    // points across every completed week, not a plain average of each
+    // week's own percentage -- point-weighted so one low-scoring week
+    // (where even a couple of points off optimal is a big percentage
+    // swing) can't dominate the season number the way a naive average of
+    // percentages would.
+    const withOptimal = completed.filter(w => w.optimalPoints > 0);
+    const totalOptimalFor = withOptimal.reduce((s, w) => s + w.optimalPoints, 0);
+    const totalActualOfOptimalWeeks = withOptimal.reduce((s, w) => s + w.myActual, 0);
+    const startSitAccuracy = withOptimal.length
+      ? Math.min(100, Math.round((totalActualOfOptimalWeeks / totalOptimalFor) * 1000) / 10)
+      : null;
+    const pointsLeftOnBench = withOptimal.length
+      ? Math.round((totalOptimalFor - totalActualOfOptimalWeeks) * 100) / 100
+      : null;
+
     return {
       record: `${wins}-${losses}${ties ? `-${ties}` : ''}`,
       avgFor: Math.round(avgFor * 100) / 100,
@@ -115,6 +162,9 @@ const Stats = (() => {
       beatProjection,
       projectionWeeks: withProjection.length,
       avgDiff: avgDiff != null ? Math.round(avgDiff * 100) / 100 : null,
+      startSitAccuracy,
+      pointsLeftOnBench,
+      startSitWeeks: withOptimal.length,
     };
   }
 

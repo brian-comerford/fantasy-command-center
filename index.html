@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=26">
+<link rel="stylesheet" href="styles.css?v=27">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=26" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=27" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -196,6 +196,12 @@
       </div>
 
       <div class="info-section">
+        <h3>Start/sit accuracy</h3>
+        <p>Given how everyone on that week's actual roster really scored (not a projection -- the real, final numbers), was your starting lineup the best one you could have set? This reruns the same lineup optimizer the Lineup tab's own swap suggestions use, but with hindsight: that week's real per-player scores in, that week's actual roster (not today's -- rosters change week to week with adds/drops/trades), and compares the best possible total against what you actually started. 100% means you started the optimal lineup that week; anything lower shows as points left on the bench, both per week and summed for the season.</p>
+        <p class="muted small">A week can occasionally show fractionally over 100% -- the optimizer's greedy slot-fill (documented under "Honest notes on data reliability" in the README) can itself be a hair off true optimal in rare cases with several overlapping flex slots, so it's clamped at 100% for display.</p>
+      </div>
+
+      <div class="info-section">
         <h3>Good matchup / Tough matchup</h3>
         <p class="info-example">
           <span class="matchup-badge good">Good matchup</span>
@@ -274,16 +280,16 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=26"></script>
-<script src="player-id-crosswalk.js?v=26"></script>
-<script src="espn-api.js?v=26"></script>
-<script src="fftoday-api.js?v=26"></script>
-<script src="cbs-api.js?v=26"></script>
-<script src="claude-assist.js?v=26"></script>
-<script src="scoring.js?v=26"></script>
-<script src="optimizer.js?v=26"></script>
-<script src="stats.js?v=26"></script>
-<script src="trends.js?v=26"></script>
-<script src="app.js?v=26"></script>
+<script src="sleeper-api.js?v=27"></script>
+<script src="player-id-crosswalk.js?v=27"></script>
+<script src="espn-api.js?v=27"></script>
+<script src="fftoday-api.js?v=27"></script>
+<script src="cbs-api.js?v=27"></script>
+<script src="claude-assist.js?v=27"></script>
+<script src="scoring.js?v=27"></script>
+<script src="optimizer.js?v=27"></script>
+<script src="stats.js?v=27"></script>
+<script src="trends.js?v=27"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

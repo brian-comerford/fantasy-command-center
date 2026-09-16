@@ -1652,7 +1652,7 @@ async function loadAndRenderStatsTab() {
   weeklyEl.innerHTML = '';
   try {
     const weeks = await Stats.loadWeeklyPerformance(
-      leagueId, data.myRoster, data.rosters, data.users, data.league, data.week, data.season, data.currentWeekConcluded
+      leagueId, data.myRoster, data.rosters, data.users, data.league, data.week, data.season, data.currentWeekConcluded, data.playerMeta
     );
     // The league/tab may have changed while this was in flight -- don't
     // paint stale results over whatever's actually on screen now.
@@ -1677,6 +1677,7 @@ function renderStatsResults({ weeks, summary }) {
   }
 
   const diffClass = (d) => (d == null ? '' : d > 0.05 ? 'stat-positive' : d < -0.05 ? 'stat-negative' : '');
+  const accuracyClass = (pct) => (pct == null ? '' : pct >= 95 ? 'stat-positive' : pct < 80 ? 'stat-negative' : '');
 
   if (!summary) {
     summaryEl.innerHTML = '<p class="muted">Season stats will appear here once this week wraps up -- the live score below will keep updating as your players finish their games.</p>';
@@ -1686,6 +1687,18 @@ function renderStatsResults({ weeks, summary }) {
           <span class="stat-label">Vs. projection</span>
           <span class="stat-value ${diffClass(summary.avgDiff)}">${summary.avgDiff > 0 ? '+' : ''}${summary.avgDiff.toFixed(1)}/wk</span>
           <span class="stat-sub">Beat it ${summary.beatProjection} of ${summary.projectionWeeks} weeks</span>
+        </div>`
+      : '';
+
+    // Start/sit accuracy: total actual points over total optimal points
+    // across completed weeks (see Stats.summarize) -- how close your own
+    // start/sit calls came to the best lineup that roster's real scores
+    // would have allowed, in hindsight.
+    const accuracyCard = summary.startSitAccuracy != null
+      ? `<div class="stat-card">
+          <span class="stat-label">Start/sit accuracy</span>
+          <span class="stat-value ${accuracyClass(summary.startSitAccuracy)}">${summary.startSitAccuracy.toFixed(1)}%</span>
+          <span class="stat-sub">${summary.pointsLeftOnBench.toFixed(1)} pts left on the bench over ${summary.startSitWeeks} week${summary.startSitWeeks === 1 ? '' : 's'}</span>
         </div>`
       : '';
 
@@ -1709,6 +1722,7 @@ function renderStatsResults({ weeks, summary }) {
         <span class="stat-sub">Week ${summary.worst.week}</span>
       </div>
       ${diffCard}
+      ${accuracyCard}
     `;
   }
 
@@ -1716,7 +1730,7 @@ function renderStatsResults({ weeks, summary }) {
   table.className = 'stats-table';
   table.innerHTML = `
     <div class="stats-row stats-header">
-      <span>Wk</span><span>Opponent</span><span>Result</span><span>Score</span><span>Projected</span><span>Diff</span>
+      <span>Wk</span><span>Opponent</span><span>Result</span><span>Score</span><span>Projected</span><span>Diff</span><span>Start/sit</span>
     </div>
   `;
   weeks.slice().reverse().forEach(w => {
@@ -1733,6 +1747,7 @@ function renderStatsResults({ weeks, summary }) {
       <span>${w.myActual.toFixed(1)}</span>
       <span>${w.myProjected != null ? w.myProjected.toFixed(1) : '--'}</span>
       <span class="${diffClass(w.diff)}">${w.diff != null ? `${w.diff > 0 ? '+' : ''}${w.diff.toFixed(1)}` : '--'}</span>
+      <span class="${accuracyClass(w.startSitAccuracy)}" title="${w.optimalPoints ? `Best possible lineup that week: ${w.optimalPoints.toFixed(1)} pts` : ''}">${w.startSitAccuracy != null ? `${w.startSitAccuracy.toFixed(1)}%` : '--'}</span>
     `;
     table.appendChild(row);
   });
