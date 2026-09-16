@@ -19,7 +19,12 @@ data from Sleeper's public API for all three of your leagues and helps you:
   the bottom keeps every rostered player's bye in view before it catches
   you short-handed.
 - **Waivers** — free agents who project higher than your weakest player
-  at the same position, with "trending add" flags.
+  at the same position, with "trending add" flags, prioritized by real
+  **team need**: how your own players at each position rank against every
+  player rostered league-wide, not just against your own weakest guy
+  there (every roster has one of those regardless of how deep it actually
+  is). A separate **best value** board ranks the strongest free agents on
+  the wire by value over replacement, independent of your own roster.
 - **Trade** — scans every other roster in your league for a bench player
   who'd clearly upgrade one of your own starters (their own team already
   starts someone better at that position, so it's a plausible ask), plus
@@ -93,6 +98,17 @@ number changes the URL, which forces a fresh fetch.
   average over their last 3 games** (pulled from the official matchups
   data) instead of a forward-looking projection. The status line under the
   tab bar always tells you which one you're looking at.
+- **A finished week's projection is a stale pre-game guess, and Sleeper
+  can take a day or two to roll its own projections forward** once a
+  week's games are actually over. The Lineup tab already sidesteps this
+  for your own starters (their shown number flips to their real score as
+  soon as their game ends, see "Live scoring" above), but a free agent or
+  a trade target isn't anyone's starter, so it has no equivalent unless
+  this app does it too. It does: on the **Waivers** and **Trade** tabs
+  specifically, any player whose game for the week is already over is
+  valued by their real score instead of that week's pre-game projection,
+  self-correcting the moment Sleeper's own projections move on to the
+  next week.
 - The lineup optimizer uses a greedy assignment (fill the most
   restrictive slots — QB, RB, WR, TE, K, DEF — first, then FLEX/SUPERFLEX
   slots with whoever's left). This matches the optimal lineup in the vast

@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=24">
+<link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=24" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=25" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -104,11 +104,11 @@
       <div id="teamNeedSummary" class="need-summary-list"></div>
 
       <h2 class="section-heading">Pickups that beat your roster</h2>
-      <p class="muted">Free agents projecting higher than your weakest player at the same position, prioritized by real team need (a thin position can outrank a bigger raw edge at a position you're already deep at).</p>
+      <p class="muted">Free agents projecting higher than your weakest player at the same position, prioritized by real team need (a thin position can outrank a bigger raw edge at a position you're already deep at). Once a player's game for the week is over, their real score is used here too instead of that week's pre-game projection -- so a free agent's big (or bad) week isn't hidden behind a stale number while Sleeper's own projections catch up.</p>
       <div id="waiverList" class="waiver-list"></div>
 
       <h2 class="section-heading">Best value on waivers</h2>
-      <p class="muted">The strongest free agents on the wire, full stop -- ranked by value over replacement at their own position, independent of your roster.</p>
+      <p class="muted">The strongest free agents on the wire, full stop -- ranked by value over replacement at their own position, independent of your roster. Same real-score-once-played treatment as above.</p>
       <div id="bestValueList" class="waiver-list"></div>
     </section>
 
@@ -118,7 +118,7 @@
       <div id="tradeScanList" class="swaps-list"></div>
 
       <h2 class="section-heading">Trade analyzer</h2>
-      <p class="muted">Pick players from your roster and the other team's roster to compare projected value.</p>
+      <p class="muted">Pick players from your roster and the other team's roster to compare projected value. Once a player's game for the week is over, this uses their real score instead of that week's pre-game projection.</p>
       <div class="trade-builder">
         <div class="trade-side">
           <h3>Your side</h3>
@@ -231,6 +231,11 @@
       </div>
 
       <div class="info-section">
+        <h3>Why a waiver or trade number sometimes isn't a projection</h3>
+        <p>Waiver pickups and trade values normally use Sleeper's own projection for the week, same as everywhere else in this app. But a projection is a pre-game guess -- once that game's actually been played, the guess is just wrong, not merely out of date. Sleeper doesn't retroactively fix a finished week's projection, and rolling its own projections forward to the next week can lag a day or two behind the games themselves finishing. So on the Waivers and Trade tabs specifically (not the Lineup tab, which already shows real scores for your own starters as their games end -- see "Last wk X" above), any player whose game for the week is already over shows their real score here too, instead of a stale pre-game number. This self-corrects the moment Sleeper moves on to the next week's real projections -- there's nothing to turn on or off.</p>
+      </div>
+
+      <div class="info-section">
         <h3>Injury Watch tags</h3>
         <p class="info-example"><span class="injury-status-badge">Questionable (Knee)</span></p>
         <p>The status and body part come straight from Sleeper's own injury report. "Bench option" and "Waiver option" are this app's suggested replacement if that player can't go -- the bench one accounts for how removing them reshuffles your other flex slots, not just a naive same-position swap; the waiver one is the best free agent at their position. Either can be missing if there's genuinely nothing better available.</p>
@@ -268,16 +273,16 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=24"></script>
-<script src="player-id-crosswalk.js?v=24"></script>
-<script src="espn-api.js?v=24"></script>
-<script src="fftoday-api.js?v=24"></script>
-<script src="cbs-api.js?v=24"></script>
-<script src="claude-assist.js?v=24"></script>
-<script src="scoring.js?v=24"></script>
-<script src="optimizer.js?v=24"></script>
-<script src="stats.js?v=24"></script>
-<script src="trends.js?v=24"></script>
-<script src="app.js?v=24"></script>
+<script src="sleeper-api.js?v=25"></script>
+<script src="player-id-crosswalk.js?v=25"></script>
+<script src="espn-api.js?v=25"></script>
+<script src="fftoday-api.js?v=25"></script>
+<script src="cbs-api.js?v=25"></script>
+<script src="claude-assist.js?v=25"></script>
+<script src="scoring.js?v=25"></script>
+<script src="optimizer.js?v=25"></script>
+<script src="stats.js?v=25"></script>
+<script src="trends.js?v=25"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

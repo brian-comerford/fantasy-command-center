@@ -341,6 +341,25 @@ async function loadLeagueData(leagueId) {
     console.warn('Could not compute actual-performance history, continuing without it.', e);
   }
 
+  // Waiver and trade suggestions need this week's real score the moment
+  // it's known, same as the Lineup tab already does per-starter (see
+  // livePlayerPoints) -- but nothing else naturally gives that treatment
+  // to a free agent or a player only being considered in a trade, since
+  // they're never actually in currentStarters. Without it, once this
+  // week's games are OVER, every free-agent suggestion here would keep
+  // showing that week's pre-game projection -- frozen and simply wrong
+  // for a game that's already been played -- until Sleeper rolls its own
+  // projections forward to the next week, which can lag a day or two
+  // behind the games actually finishing. Swapping in the real score as
+  // soon as it's known self-corrects the moment Sleeper does move on:
+  // currentWeekActualPoints is naturally empty again for a new week no
+  // one's played yet, so this quietly falls back to pure projection with
+  // no day-of-week guessing required.
+  const waiverTradeValuation = { ...valuation };
+  for (const [pid, pts] of Object.entries(currentWeekActualPoints)) {
+    waiverTradeValuation[pid] = pts;
+  }
+
   // DVP (defense vs. position) and per-player usage-trend tracking -- see
   // trends.js. Both need at least one fully-completed week of stats
   // league-wide, so only weeks 1..week-1 (never the current, possibly
@@ -437,7 +456,7 @@ async function loadLeagueData(leagueId) {
   const usedCbs = Object.keys(cbsRanks).length > 0;
 
   state.leagueData[leagueId] = {
-    league, rosters, users, myRoster, playerMeta, valuation, blendedValuation, agreement, cbsRanks,
+    league, rosters, users, myRoster, playerMeta, valuation, waiverTradeValuation, blendedValuation, agreement, cbsRanks,
     lastWeekPoints, seasonAvgPoints, seasonGamesPlayed, currentWeekActualPoints,
     priorLastWeekPoints, priorSeasonAvgPoints, priorSeasonGamesPlayed, priorSeasonYear,
     week, season, projSource, rosteredIds, trendingIds, opponent,
@@ -1224,7 +1243,7 @@ function renderOpponentLineup(data) {
 // not fire even though this is exactly the situation someone would want a
 // backup plan for.
 function renderInjuryWatch(data) {
-  const { league, myRoster, playerMeta, valuation, rosteredIds, trendingIds } = data;
+  const { league, myRoster, playerMeta, valuation, waiverTradeValuation, rosteredIds, trendingIds } = data;
   const container = el('injuryWatch');
   container.innerHTML = '';
   if (!myRoster) return;
@@ -1248,7 +1267,7 @@ function renderInjuryWatch(data) {
   flagged.forEach(p => {
     const { benchReplacement, waiverReplacement } = Optimizer.injuryReplacements(
       p.id, league.roster_positions, myRoster.starters || [], myRoster.players || [],
-      playerMeta, valuation, rosteredIds, trendingIds
+      playerMeta, valuation, rosteredIds, trendingIds, waiverTradeValuation
     );
 
     const bodyPart = p.injuryBodyPart ? ` (${p.injuryBodyPart})` : '';
@@ -1313,16 +1332,16 @@ function renderNeedSummary(need) {
 }
 
 function renderWaiversTab(data) {
-  const { myRoster, playerMeta, valuation, rosteredIds, trendingIds, rosters, league } = data;
+  const { myRoster, playerMeta, waiverTradeValuation, rosteredIds, trendingIds, rosters, league } = data;
   if (!myRoster) return;
 
-  const need = Optimizer.positionalNeed(league.roster_positions, rosters, myRoster.roster_id, playerMeta, valuation);
+  const need = Optimizer.positionalNeed(league.roster_positions, rosters, myRoster.roster_id, playerMeta, waiverTradeValuation);
   renderNeedSummary(need);
 
   const suggestions = Optimizer.waiverTargets(
     myRoster.players || [],
     playerMeta,
-    valuation,
+    waiverTradeValuation,
     rosteredIds,
     trendingIds,
     rosters,
@@ -1376,12 +1395,12 @@ function renderWaiversTab(data) {
 // the wire, position-scarcity-adjusted so a TE isn't buried under every
 // RB/WR just for scoring fewer raw points.
 function renderBestValueList(data) {
-  const { playerMeta, valuation, rosteredIds, trendingIds, rosters, league } = data;
+  const { playerMeta, waiverTradeValuation, rosteredIds, trendingIds, rosters, league } = data;
   const list = el('bestValueList');
   if (!list) return;
 
   const values = Optimizer.bestAvailableValue(
-    playerMeta, valuation, rosteredIds, trendingIds, rosters, league.roster_positions, 15
+    playerMeta, waiverTradeValuation, rosteredIds, trendingIds, rosters, league.roster_positions, 15
   );
 
   list.innerHTML = '';
@@ -1429,7 +1448,7 @@ function teamNameForRoster(rosterId, rosters, users) {
 // target and the starter it'd replace, so this is a starting point for
 // the builder rather than a dead end.
 function renderTradeScan(data) {
-  const { myRoster, rosters, users, league, playerMeta, valuation } = data;
+  const { myRoster, rosters, users, league, playerMeta, waiverTradeValuation } = data;
   const heading = el('tradeScanHeading');
   const intro = el('tradeScanIntro');
   const list = el('tradeScanList');
@@ -1441,7 +1460,7 @@ function renderTradeScan(data) {
   }
 
   const opportunities = Optimizer.leagueTradeScan(
-    myRoster.roster_id, rosters, playerMeta, valuation, league.roster_positions
+    myRoster.roster_id, rosters, playerMeta, waiverTradeValuation, league.roster_positions
   );
 
   heading.classList.toggle('hidden', !opportunities.length);
@@ -1533,21 +1552,21 @@ function renderPool(containerId, playerIds, playerMeta, valuation, side) {
 }
 
 function renderTradePools(data) {
-  const { myRoster, rosters, playerMeta, valuation } = data;
-  renderPool('tradeSideAPool', myRoster.players || [], playerMeta, valuation, 'sideA');
+  const { myRoster, rosters, playerMeta, waiverTradeValuation } = data;
+  renderPool('tradeSideAPool', myRoster.players || [], playerMeta, waiverTradeValuation, 'sideA');
   const opponent = rosters.find(r => r.roster_id === Number(el('tradeOpponentSelect').value));
-  renderPool('tradeSideBPool', opponent ? (opponent.players || []) : [], playerMeta, valuation, 'sideB');
+  renderPool('tradeSideBPool', opponent ? (opponent.players || []) : [], playerMeta, waiverTradeValuation, 'sideB');
   renderTradeResult();
 }
 
 function renderTradeResult() {
   const data = state.leagueData[state.activeLeagueId];
-  const { playerMeta, valuation } = data;
+  const { playerMeta, waiverTradeValuation } = data;
   const result = Optimizer.tradeSummary(
     Array.from(state.trade.sideA),
     Array.from(state.trade.sideB),
     playerMeta,
-    valuation
+    waiverTradeValuation
   );
   const container = el('tradeResult');
   if (!result.a.players.length && !result.b.players.length) {

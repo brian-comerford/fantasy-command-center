@@ -344,7 +344,14 @@ const Optimizer = (() => {
   // the OTHER WR slot instead -- which misreads as "your other starter is
   // the bench replacement", i.e. suggesting a player who's already in
   // your lineup.
-  function injuryReplacements(playerId, rosterPositions, currentStarters, rosterPlayerIds, allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds) {
+  // waiverValuation lets the waiver-side search use a different number
+  // than the bench-side lineup math above it -- specifically so it can be
+  // handed a version of valuation with this week's real score swapped in
+  // for anyone who's already played (see waiverTradeValuation in app.js),
+  // rather than a stale pre-game projection for a game that's already
+  // over. Defaults to plain valuation so existing callers keep working
+  // unchanged.
+  function injuryReplacements(playerId, rosterPositions, currentStarters, rosterPlayerIds, allPlayerMeta, valuation, rosteredIdsLeagueWide, trendingAddIds, waiverValuation = valuation) {
     let benchReplacement = null;
     if ((currentStarters || []).includes(playerId)) {
       const withPlayer = optimalLineup(rosterPositions, rosterPlayerIds, allPlayerMeta, valuation);
@@ -361,11 +368,11 @@ const Optimizer = (() => {
     let waiverReplacement = null;
     const meta = allPlayerMeta[playerId];
     if (meta) {
-      const myPts = valuation[playerId] ?? 0;
+      const myPts = waiverValuation[playerId] ?? 0;
       const rosteredSet = new Set(rosteredIdsLeagueWide);
       const candidate = Object.entries(allPlayerMeta)
         .filter(([id, m]) => !rosteredSet.has(id) && m.active && m.team !== 'FA' && m.pos === meta.pos)
-        .map(([id, m]) => ({ id, ...m, pts: valuation[id] ?? 0, trending: trendingAddIds.has(id) }))
+        .map(([id, m]) => ({ id, ...m, pts: waiverValuation[id] ?? 0, trending: trendingAddIds.has(id) }))
         .filter(c => c.pts > myPts + 0.01)
         .sort((a, b) => b.pts - a.pts)[0];
       if (candidate) waiverReplacement = candidate;
