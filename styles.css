@@ -492,6 +492,7 @@ button, input, select {
   color: var(--chalk);
 }
 
+.lineup-row .pts.pts-sources { cursor: help; text-decoration: underline dotted var(--chalk-dim); text-underline-offset: 3px; }
 .lineup-row .pts.pts-over { color: var(--turf-bright); }
 .lineup-row .pts.pts-under { color: var(--rust-bright); }
 

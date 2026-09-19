@@ -7,13 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=27">
+<link rel="stylesheet" href="styles.css?v=28">
 </head>
 <body>
 
 <header class="topbar">
   <button type="button" class="brand" id="brandHome" title="Back to Command Center">
-    <img src="assets/logo.png?v=27" alt="Fantasy Football Command Center" class="brand-logo">
+    <img src="assets/logo.png?v=28" alt="Fantasy Football Command Center" class="brand-logo">
   </button>
   <nav id="leagueTabs" class="league-tabs"></nav>
   <div class="week-readout" id="weekReadout"></div>
@@ -165,7 +165,7 @@
         </ul>
         <p>A small, muted "(blend N)" next to the projection is the average across whichever sources have data for that player -- purely informational, never what the app itself decides anything from. It's a per-player signal, not a head-to-head one -- so on a swap or waiver comparison, both players can show their own badge and blend note (each with its own tooltip), not just the one being recommended. Both are absent entirely for a K or DEF: ESPN blending skips those positions outright, and FFToday's kicker numbers aren't distance-bucketed while it has no real defense projections at all (rank only), so neither counts toward the blend for those two.</p>
         <p class="muted small">Hover (or tap, on mobile) the badge to see each source's exact number.</p>
-        <p>A <strong>Projections: Sleeper / Blend</strong> toggle sits above "Your current lineup" and "This week's opponent" when blend data's available -- it switches those two grids (and their totals) between Sleeper's own numbers and the blend, letting you compare side by side. It only affects those two grids: swap suggestions, waiver targets, and trade values always stay on plain Sleeper valuation regardless of which mode you're viewing. A player already actual-scored isn't affected either -- only projections for whoever hasn't played yet change.</p>
+        <p>A <strong>Projections: Sleeper / Blend</strong> toggle sits above "Your current lineup" and "This week's opponent" when blend data's available -- it switches those two grids (and their totals) between Sleeper's own numbers and the blend, letting you compare side by side. It only affects those two grids: swap suggestions, waiver targets, and trade values always stay on plain Sleeper valuation regardless of which mode you're viewing. A player already actual-scored isn't affected either -- only projections for whoever hasn't played yet change. In Blend mode, tap (or hover) a player's projected score in either grid to see each source's own number that's being averaged.</p>
       </div>
 
       <div class="info-section">
@@ -280,16 +280,16 @@
      indefinitely after a deploy. Bump every "?v=N" on this page by one
      whenever ANY local file changes, so returning visitors are guaranteed
      to get the update instead of a stale cached copy. -->
-<script src="sleeper-api.js?v=27"></script>
-<script src="player-id-crosswalk.js?v=27"></script>
-<script src="espn-api.js?v=27"></script>
-<script src="fftoday-api.js?v=27"></script>
-<script src="cbs-api.js?v=27"></script>
-<script src="claude-assist.js?v=27"></script>
-<script src="scoring.js?v=27"></script>
-<script src="optimizer.js?v=27"></script>
-<script src="stats.js?v=27"></script>
-<script src="trends.js?v=27"></script>
-<script src="app.js?v=27"></script>
+<script src="sleeper-api.js?v=28"></script>
+<script src="player-id-crosswalk.js?v=28"></script>
+<script src="espn-api.js?v=28"></script>
+<script src="fftoday-api.js?v=28"></script>
+<script src="cbs-api.js?v=28"></script>
+<script src="claude-assist.js?v=28"></script>
+<script src="scoring.js?v=28"></script>
+<script src="optimizer.js?v=28"></script>
+<script src="stats.js?v=28"></script>
+<script src="trends.js?v=28"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>

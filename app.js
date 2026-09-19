@@ -600,6 +600,21 @@ function effectiveValuation(data) {
   return { ...data.valuation, ...data.blendedValuation };
 }
 
+// In blend mode, a lineup row's projected score is an average of several
+// sources -- this makes it tappable/hoverable to show each source's own
+// number, same popover and same "Sleeper: 12.3 · ESPN: 11.0 · ..." text as
+// the Strong/Mixed/Split badge (see agreementBadge). Returns the extra
+// attributes for the .pts span, or '' when there's nothing to show: not in
+// blend mode, the number shown is already a real score rather than a
+// projection, or only one source covers this player (e.g. K/DEF).
+function blendSourcesAttrs(playerId, live, data) {
+  if (state.projectionMode !== 'blend' || !live || live.isActual) return { cls: '', attrs: '' };
+  const info = data.agreement && data.agreement[playerId];
+  if (!info || !info.sources || info.sources.length < 2) return { cls: '', attrs: '' };
+  const tooltip = info.sources.map(s => `${s.name}: ${s.pts.toFixed(1)}`).join(' · ');
+  return { cls: ' pts-sources', attrs: ` title="${tooltip}"` };
+}
+
 function hasBlendData(data) {
   return Boolean(data.blendedValuation && Object.keys(data.blendedValuation).length);
 }
@@ -812,7 +827,7 @@ function initBadgeTapTooltips() {
   }
 
   document.addEventListener('click', (e) => {
-    const badge = e.target.closest('.agreement-badge, .cbs-tag, .matchup-badge, .usage-badge, .need-badge');
+    const badge = e.target.closest('.agreement-badge, .cbs-tag, .matchup-badge, .usage-badge, .need-badge, .pts-sources');
     if (!badge) {
       hideTooltip();
       return;
@@ -949,6 +964,7 @@ function renderLineupTab(data) {
   current.assignments.forEach(a => {
     const meta = a.id ? playerMeta[a.id] : null;
     const live = a.id ? livePlayerPoints(a.id, a.pts, data) : null;
+    const src = a.id ? blendSourcesAttrs(a.id, live, data) : { cls: '', attrs: '' };
     const row = document.createElement('div');
     row.className = 'lineup-row' + (!a.id ? ' empty-slot' : '');
     row.innerHTML = `
@@ -957,7 +973,7 @@ function renderLineupTab(data) {
         <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'} ${meta ? `${matchupBadge(a.id, data)} ${usageTrendBadge(a.id, data)}` : ''}</span>
         ${meta ? recentFormLine(a.id, data) : ''}
       </div>
-      <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}">${live ? live.pts.toFixed(1) : '--'}</span>
+      <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}${src.cls}"${src.attrs}>${live ? live.pts.toFixed(1) : '--'}</span>
     `;
     grid.appendChild(row);
   });
@@ -970,6 +986,7 @@ function renderLineupTab(data) {
     current.bench.forEach(p => {
       const meta = playerMeta[p.id];
       const live = livePlayerPoints(p.id, p.pts, data);
+      const src = blendSourcesAttrs(p.id, live, data);
       const row = document.createElement('div');
       row.className = 'lineup-row';
       row.innerHTML = `
@@ -978,7 +995,7 @@ function renderLineupTab(data) {
           <span>${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''} ${matchupBadge(p.id, data)} ${usageTrendBadge(p.id, data)}</span>
           ${recentFormLine(p.id, data)}
         </div>
-        <span class="pts${live.colorClass ? ` ${live.colorClass}` : ''}">${live.pts.toFixed(1)}</span>
+        <span class="pts${live.colorClass ? ` ${live.colorClass}` : ''}${src.cls}"${src.attrs}>${live.pts.toFixed(1)}</span>
       `;
       grid.appendChild(row);
     });
@@ -1236,6 +1253,7 @@ function renderOpponentLineup(data) {
   oppLineup.assignments.forEach(a => {
     const meta = a.id ? playerMeta[a.id] : null;
     const live = a.id ? livePlayerPoints(a.id, a.pts, data) : null;
+    const src = a.id ? blendSourcesAttrs(a.id, live, data) : { cls: '', attrs: '' };
     const row = document.createElement('div');
     row.className = 'lineup-row' + (!a.id ? ' empty-slot' : '');
     row.innerHTML = `
@@ -1243,7 +1261,7 @@ function renderOpponentLineup(data) {
       <div class="lineup-player-cell">
         <span>${meta ? `${meta.name} · ${meta.pos} ${meta.team}${meta.status ? ` (${meta.status})` : ''}` : 'No eligible player'} ${meta ? `${matchupBadge(a.id, data)} ${usageTrendBadge(a.id, data)}` : ''}</span>
       </div>
-      <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}">${live ? live.pts.toFixed(1) : '--'}</span>
+      <span class="pts${live && live.colorClass ? ` ${live.colorClass}` : ''}${src.cls}"${src.attrs}>${live ? live.pts.toFixed(1) : '--'}</span>
     `;
     grid.appendChild(row);
   });
